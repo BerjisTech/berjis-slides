@@ -5,7 +5,7 @@ import { CommonModule } from '@angular/common';
   standalone: true,
   selector: 'app-slide',
   imports: [CommonModule],
-  template: `<div class="border rounded p-4">Slides editor placeholder (DIY collab slot)</div>`
+  templateUrl: './slide.component.html'
 })
 export class SlidePageComponent {}
 
