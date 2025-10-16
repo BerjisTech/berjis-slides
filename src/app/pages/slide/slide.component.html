@@ -1,11 +1,51 @@
-<div class="p-3 border-b flex items-center gap-3">
-  <a routerLink="/" class="text-blue-600">Back</a>
-  <input class="flex-grow border rounded px-2 py-1" placeholder="Untitled presentation" [(ngModel)]="deck!.title" (ngModelChange)="onTitleChange()" />
-  <div class="text-xs text-gray-600" *ngIf="svc.isSaving">Saving…</div>
-  <div class="text-xs text-gray-600" *ngIf="!svc.isSaving && svc.lastSavedAt">Saved {{ svc.lastSavedAt | date:'shortTime' }}</div>
+<div class="w-full h-[145px] overflow-hidden ps-[30px] p-3">
+  <div class="h-[70px] flex items-center justify-start gap-3">
+    <a href="/" class="h-full w-[70px] bg-blue-400 rounded flex items-center justify-center">Icon</a>
+    <div class="flex-grow">
+      <div class="flex items-center-safe justify-start gap-2">
+        <input class="text-2xl font-semibold outline-none bg-transparent py-1" placeholder="Untitled document"
+          [(ngModel)]="deck!.title" (ngModelChange)="onTitleChange()" />
+
+        <div class="flex items-center gap-2 text-xs">
+          <span>start</span>
+          <span class="inline-block h-2 w-2 rounded-full" [class.bg-green-500]="svc.syncMode==='remote'"
+            [class.bg-yellow-500]="svc.syncMode==='local'"></span>
+          <span>Sync: {{ svc.syncMode === 'remote' ? 'Server' : 'Local' }}</span>
+          <span *ngIf="svc.isSaving" class="text-gray-500">• Saving…</span>
+          <span *ngIf="!svc.isSaving && svc.lastSavedAt" class="text-gray-500">• Saved {{ svc.lastSavedAt |
+            date:'shortTime' }}</span>
+          <span *ngIf="svc.lastError" class="text-red-600">• {{ svc.lastError }}</span>
+        </div>
+      </div>
+      <div class="flex items-center justify-start">
+        <span *ngFor="let contextMenu of contextMenus"
+          class="group hover:bg-slate-200 px-3 rounded hover:shadow cursor-pointer relative">
+          {{contextMenu.name}}
+          <div
+            class="hidden group-hover:block absolute top-[100%] left-0 rounded shadow bg-white z-[50000] overflow-hidden">
+            <div *ngFor="let menu of contextMenu.menus" class="p-2 hover:bg-slate-200 cursor-pointer">{{menu.name}}
+            </div>
+          </div>
+        </span>
+      </div>
+    </div>
+    <div class="h-full flex items-center justify-end gap-2">
+      <div>History</div>
+      <div>Comment</div>
+      <div>Share</div>
+      <div>Ai</div>
+      <div>User</div>
+    </div>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-1 p-2 rounded bg-blue-200 sticky mt-3 top-0 z-10">
+    <button class="px-2 py-1 border rounded" title="Undo">↶</button>
+    <button class="px-2 py-1 border rounded" title="Redo">↷</button>
+  </div>
+
 </div>
 
-<div class="p-4 grid grid-cols-4 gap-4">
+<div #editorMainPane class="p-4 grid grid-cols-4 gap-4">
   <div class="col-span-1 space-y-2">
     <div class="text-sm font-medium text-gray-600">Slides</div>
     <div *ngFor="let s of slides; let i = index" class="border rounded p-2 cursor-pointer bg-white">
@@ -16,7 +56,8 @@
   </div>
   <div class="col-span-3">
     <div class="border rounded p-4 bg-slate-50 min-h-[400px]">
-      <textarea class="w-full h-[360px] border rounded p-2" placeholder="Type your slide content here" [ngModel]="slides[0]?.text" (ngModelChange)="onSlideChange(0, $event)"></textarea>
+      <textarea class="w-full h-[360px] border rounded p-2" placeholder="Type your slide content here"
+        [ngModel]="slides[0]?.text" (ngModelChange)="onSlideChange(0, $event)"></textarea>
     </div>
   </div>
 </div>

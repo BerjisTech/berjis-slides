@@ -14,6 +14,10 @@ export class HomePageComponent {
   authed: boolean | null = null;
   recents: SlideDoc[] = [];
   constructor(private api: ApiService, private slides: SlidesService) { this.init(); }
+  get syncMode() { return this.slides.syncMode; }
+  get isSaving() { return this.slides.isSaving; }
+  get lastSavedAt() { return this.slides.lastSavedAt; }
+  get lastError() { return this.slides.lastError; }
   async init() {
     try {
       const res = await this.api.ensureAuth();

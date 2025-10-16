@@ -14,8 +14,63 @@ export class SlidePageComponent implements OnInit {
   deck: SlideDoc | null = null;
   slides: { id: string; text: string }[] = defaultSlides().slides;
   pendingSave?: any;
+  contextMenus: { name: string, menus: { icon: string, name: string, action: string }[] }[] = [
+    {
+      name: 'File',
+      menus: [
+        { icon: '', name: 'New', action: '' },
+        { icon: '', name: 'Open', action: '' },
+        { icon: '', name: 'Duplicate', action: '' },
+        { icon: '', name: 'Share', action: '' },
+        { icon: '', name: 'Email', action: '' },
+        { icon: '', name: 'Export', action: '' }
+      ]
+    },
+    {
+      name: 'Edit',
+      menus: [
+        { icon: '', name: '', action: '' }
+      ]
+    },
+    {
+      name: 'View',
+      menus: [
+        { icon: '', name: '', action: '' }
+      ]
+    },
+    {
+      name: 'Insert',
+      menus: [
+        { icon: '', name: '', action: '' }
+      ]
+    },
+    {
+      name: 'Format',
+      menus: [
+        { icon: '', name: '', action: '' }
+      ]
+    },
+    {
+      name: 'Tools',
+      menus: [
+        { icon: '', name: '', action: '' }
+      ]
+    },
+    {
+      name: 'Extensions',
+      menus: [
+        { icon: '', name: '', action: '' }
+      ]
+    },
+    {
+      name: 'Help',
+      menus: [
+        { icon: '', name: '', action: '' }
+      ]
+    },
+  ]
 
-  constructor(private route: ActivatedRoute, private router: Router, public svc: SlidesService) {}
+  constructor(private route: ActivatedRoute, private router: Router, public svc: SlidesService) { }
 
   async ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id') || 'new';
@@ -29,10 +84,10 @@ export class SlidePageComponent implements OnInit {
 
   onTitleChange() { this.queueSave(); }
   onSlideChange(i: number, val: string) { this.slides[i].text = val; this.queueSave(); }
-  addSlide() { this.slides.push({ id: String(this.slides.length+1), text: '' }); this.queueSave(); }
-  removeSlide(i: number) { this.slides.splice(i,1); this.queueSave(); }
+  addSlide() { this.slides.push({ id: String(this.slides.length + 1), text: '' }); this.queueSave(); }
+  removeSlide(i: number) { this.slides.splice(i, 1); this.queueSave(); }
 
   private queueSave() { if (!this.deck) return; if (this.pendingSave) clearTimeout(this.pendingSave); this.pendingSave = setTimeout(() => this.save(), 400); }
-  private async ensureCreatedId() { if (this.deck && this.deck.id === 'new') { const hasTitle = !!this.deck.title && this.deck.title.trim().length>0; const hasData = JSON.stringify(this.slides).length>2; if (hasTitle || hasData) { const created = await this.svc.create({ title: this.deck.title, data: { slides: this.slides } }); this.deck = created; this.router.navigate(['/slide', created.id], { replaceUrl: true }); } } }
+  private async ensureCreatedId() { if (this.deck && this.deck.id === 'new') { const hasTitle = !!this.deck.title && this.deck.title.trim().length > 0; const hasData = JSON.stringify(this.slides).length > 2; if (hasTitle || hasData) { const created = await this.svc.create({ title: this.deck.title, data: { slides: this.slides } }); this.deck = created; this.router.navigate(['/slide', created.id], { replaceUrl: true }); } } }
   private async save() { if (!this.deck) return; await this.ensureCreatedId(); if (!this.deck) return; this.deck.data = { slides: this.slides }; await this.svc.save(this.deck); }
 }
