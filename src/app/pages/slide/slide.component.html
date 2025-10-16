@@ -1,4 +1,4 @@
-<div class="w-full h-[145px] overflow-hidden ps-[30px] p-3">
+<div class="w-full h-[145px] overflow-visible ps-[30px] p-3 relative z-20">
   <div class="h-[70px] flex items-center justify-start gap-3">
     <a href="/" class="h-full w-[70px] bg-blue-400 rounded flex items-center justify-center">Icon</a>
     <div class="flex-grow">
@@ -22,8 +22,9 @@
           class="group hover:bg-slate-200 px-3 rounded hover:shadow cursor-pointer relative">
           {{contextMenu.name}}
           <div
-            class="hidden group-hover:block absolute top-[100%] left-0 rounded shadow bg-white z-[50000] overflow-hidden">
-            <div *ngFor="let menu of contextMenu.menus" class="p-2 hover:bg-slate-200 cursor-pointer">{{menu.name}}
+            class="hidden group-hover:block absolute top-[100%] left-0 rounded shadow bg-white z-[50000] overflow-visible">
+            <div *ngFor="let menu of contextMenu.menus" class="p-2 hover:bg-slate-200 cursor-pointer"
+              (click)="onMenu(menu.action); $event.stopPropagation();">{{menu.name}}
             </div>
           </div>
         </span>
@@ -58,6 +59,39 @@
     <div class="border rounded p-4 bg-slate-50 min-h-[400px]">
       <textarea class="w-full h-[360px] border rounded p-2" placeholder="Type your slide content here"
         [ngModel]="slides[0]?.text" (ngModelChange)="onSlideChange(0, $event)"></textarea>
+    </div>
+  </div>
+</div>
+
+<!-- Open Modal -->
+<div *ngIf="openModal" class="fixed inset-0 bg-black/30 flex items-center justify-center z-[60000]">
+  <div class="bg-white rounded shadow w-[900px] max-w-[90vw] p-5">
+    <div class="flex items-center justify-between mb-3">
+      <div class="text-lg font-semibold">Open Presentation</div>
+      <button class="px-2 py-1 border rounded" (click)="cancelOpen()">Close</button>
+    </div>
+    <input class="w-full border rounded px-3 py-2 mb-4" [(ngModel)]="openQuery" (ngModelChange)="onOpenQueryChange()"
+      placeholder="Search by title or content" />
+    <div class="grid grid-cols-5 auto-rows-[220px] gap-3">
+      <a (click)="openDeck(d)" *ngFor="let d of openFiltered" class="shadow rounded bg-slate-50 flex flex-col p-2 cursor-pointer hover:shadow-xl">
+        <div class="font-medium truncate">{{ d.title || 'Untitled' }}</div>
+        <div class="text-xs text-gray-500 mt-1">{{ d.updatedAt | date:'medium' }}</div>
+        <div class="flex-grow"></div>
+        <div class="text-blue-600 text-sm">Open</div>
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Rename Modal -->
+<div *ngIf="renameModal" class="fixed inset-0 bg-black/30 flex items-center justify-center z-[60000]">
+  <div class="bg-white rounded shadow w-[520px] p-4">
+    <div class="text-lg font-semibold mb-2">Rename Presentation</div>
+    <label class="text-sm text-gray-600">Title</label>
+    <input class="w-full border rounded px-2 py-1 mt-1" [(ngModel)]="renameTitle" placeholder="Untitled presentation" />
+    <div class="flex items-center justify-end gap-2 mt-3">
+      <button class="px-3 py-1 border rounded" (click)="cancelRename()">Cancel</button>
+      <button class="px-3 py-1 bg-blue-600 text-white rounded" (click)="confirmRename()">Save</button>
     </div>
   </div>
 </div>
