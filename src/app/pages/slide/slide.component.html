@@ -22,7 +22,7 @@
           class="group hover:bg-slate-200 px-3 rounded hover:shadow cursor-pointer relative">
           {{contextMenu.name}}
           <div
-            class="hidden group-hover:block absolute top-[100%] left-0 rounded shadow bg-white z-[50000] overflow-visible">
+            class="hidden group-hover:block absolute top-[100%] left-0 rounded shadow bg-white z-[50000] overflow-visible min-w-[200px]">
             <div *ngFor="let menu of contextMenu.menus" class="p-2 hover:bg-slate-200 cursor-pointer"
               (click)="onMenu(menu.action); $event.stopPropagation();">{{menu.name}}
             </div>
