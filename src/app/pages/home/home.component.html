@@ -1,32 +1,74 @@
+<div class="p-5 flex items-center justify-center gap-2 shadow">
+  <div class="flex flex-col items-start justify-start gap-1">
+    <span *ngFor="let burger of [0,1,2]" class="w-[20px] h-[2px] rounded bg-slate-800"></span>
+  </div>
+  <div>Icon</div>
+  <div>Slides</div>
+  <div class="flex-grow"></div>
+  <div class="cursor-pointer w-[20px] h-[20px] flex flex-wrap items-center justify-center gap-1">
+    <span *ngFor="let burger of [0,1,2,3,4,5,6,7,8]" class="rounded-full bg-slate-800 p-[2px]"></span>
+  </div>
+  <div>User</div>
+</div>
+<div class="w-full py-[50px] bg-orange-100">
+  <div class="max-w-5xl mx-auto">
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex-grow">Start new presentation</div>
+      <div class="flex items-center justify-end gap-2">
+        <div>Template gallery</div>
+        <div>chevrons</div>
+        <div class="w-[0.5px] bg-slate-300"></div>
+        <div class="cursor-pointer">
+          <div *ngFor="let burger of [0,1,2]" class="rounded-full bg-slate-800 p-[2px]"></div>
+        </div>
+      </div>
+    </div>
+    <div class="grid grid-cols-5 auto-rows-[300px] gap-3">
+      <a routerLink="/slide/new" class="flex flex-col">
+        <div class="flex-grow shadow rounded bg-slate-50"></div>
+        <div>Blank presentation</div>
+      </a>
+      <a *ngFor="let template of [0,1,2,3]" class="flex flex-col">
+        <div class="flex-grow shadow rounded bg-slate-50"></div>
+        <div>Blank presentation</div>
+      </a>
+    </div>
+  </div>
+</div>
 <div class="min-h-[60vh]">
   <!-- Logged out landing -->
-  <div *ngIf="authed === false" class="mx-auto max-w-3xl text-center py-16">
-    <h2 class="text-3xl font-semibold mb-3">Tell your story with Slides</h2>
-    <p class="text-gray-600 mb-6">Design compelling presentations and collaborate in real time.</p>
+  <div *ngIf="authed === false" class="mx-auto max-w-5xl text-center py-16">
+    <h2 class="text-3xl font-semibold mb-3">Create and present with Berjis Slides</h2>
+    <p class="text-gray-600 mb-6">Fast presentations with collaboration and rich formatting.</p>
     <div class="flex items-center justify-center gap-3">
       <a class="px-4 py-2 rounded bg-blue-600 text-white" href="http://berjis.test">Get Started</a>
-      <a class="px-4 py-2 rounded border" routerLink="/slide/demo">Try Demo</a>
+      <a class="px-4 py-2 rounded border" routerLink="/slide/abc">Try Demo</a>
     </div>
   </div>
 
   <!-- Logged in recents -->
-  <div *ngIf="authed === true" class="max-w-4xl mx-auto py-8">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="text-xl font-semibold">Recent Decks</h3>
-      <a routerLink="/slide/new" class="text-sm px-3 py-1.5 rounded bg-blue-600 text-white">New Deck</a>
+  <div *ngIf="authed === true" class="max-w-5xl mx-auto py-8">
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex-grow font-bold text-lg">Recent presentations</div>
+      <div class="flex items-center justify-end gap-2">
+        <div>Owned by anyone</div>
+        <div>Chevrons</div>
+        <div>Table view</div>
+        <div>Sort A-z</div>
+        <div>File picker</div>
+      </div>
     </div>
-    <ul class="divide-y border rounded">
-      <li *ngFor="let s of recents" class="p-3 flex items-center justify-between">
-        <div>
-          <div class="font-medium">{{ s.title }}</div>
-          <div class="text-xs text-gray-500">Updated {{ s.updatedAt | date:'medium' }}</div>
-        </div>
+    <div class="w-full grid grid-cols-5 auto-rows-[300px] gap-3">
+      <a [routerLink]="['/slide', s.id]" *ngFor="let s of recents"
+        class="shadow rounded bg-slate-50 flex flex-col p-2 cursor-pointer hover:shadow-xl">
+        <div class="font-medium">{{ s.title }}</div>
+        <div class="flex-grow"></div>
+        <div class="text-xs text-gray-500">Updated {{ s.updatedAt | date:'medium' }}</div>
         <a [routerLink]="['/slide', s.id]" class="text-blue-600 text-sm">Open</a>
-      </li>
-    </ul>
+      </a>
+    </div>
   </div>
 
   <!-- Loading -->
   <div *ngIf="authed === null" class="py-16 text-center text-gray-500">Checking your session.</div>
 </div>
-

@@ -1,2 +1,22 @@
-<div class="border rounded p-4">Slides editor placeholder (DIY collab slot)</div>
+<div class="p-3 border-b flex items-center gap-3">
+  <a routerLink="/" class="text-blue-600">Back</a>
+  <input class="flex-grow border rounded px-2 py-1" placeholder="Untitled presentation" [(ngModel)]="deck!.title" (ngModelChange)="onTitleChange()" />
+  <div class="text-xs text-gray-600" *ngIf="svc.isSaving">Saving…</div>
+  <div class="text-xs text-gray-600" *ngIf="!svc.isSaving && svc.lastSavedAt">Saved {{ svc.lastSavedAt | date:'shortTime' }}</div>
+</div>
 
+<div class="p-4 grid grid-cols-4 gap-4">
+  <div class="col-span-1 space-y-2">
+    <div class="text-sm font-medium text-gray-600">Slides</div>
+    <div *ngFor="let s of slides; let i = index" class="border rounded p-2 cursor-pointer bg-white">
+      <div class="text-xs text-gray-500">Slide {{ i+1 }}</div>
+      <div class="truncate">{{ s.text || 'Empty' }}</div>
+    </div>
+    <button class="mt-2 text-sm px-2 py-1 rounded bg-blue-600 text-white" (click)="addSlide()">Add slide</button>
+  </div>
+  <div class="col-span-3">
+    <div class="border rounded p-4 bg-slate-50 min-h-[400px]">
+      <textarea class="w-full h-[360px] border rounded p-2" placeholder="Type your slide content here" [ngModel]="slides[0]?.text" (ngModelChange)="onSlideChange(0, $event)"></textarea>
+    </div>
+  </div>
+</div>
