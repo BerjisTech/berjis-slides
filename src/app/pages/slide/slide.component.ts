@@ -7,13 +7,14 @@ import { SlidesService, SlideDoc, defaultSlides } from '../../slides.service';
 @Component({
   standalone: true,
   selector: 'app-slide',
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule],
   templateUrl: './slide.component.html'
 })
 export class SlidePageComponent implements OnInit {
   deck: SlideDoc | null = null;
   slides: { id: string; text: string }[] = defaultSlides().slides;
   pendingSave?: any;
+  zoom = 1;
   openModal = false;
   openId = '';
   openQuery = '';
@@ -72,11 +73,23 @@ export class SlidePageComponent implements OnInit {
       case 'copy': this.copyDeck(); break;
       case 'rename': this.showRename(); break;
       case 'download': this.downloadDeck(); break;
+      case 'import': this.importDeck(); break;
       case 'undo': document.execCommand('undo'); break;
       case 'redo': document.execCommand('redo'); break;
       case 'newSlide': this.addSlide(); break;
       case 'dupSlide': this.slides.push({ ...this.slides[0], id: String(this.slides.length+1) }); this.queueSave(); break;
       case 'present': this.present(); break;
+      case 'grid': this.showGridOverview(); break;
+      case 'zoom': this.promptZoom(); break;
+      case 'textBox': this.focusEditor(); break;
+      case 'image': this.insertImagePlaceholder(); break;
+      case 'shape': this.insertShapeMarker(); break;
+      case 'formatText': this.formatSelectionUppercase(); break;
+      case 'align': this.insertAlignMarker('center'); break;
+      case 'order': this.moveFirstToLast(); break;
+      case 'alignH': this.insertAlignMarker('left'); break;
+      case 'spelling': this.toggleTextareaSpellcheck(); break;
+      case 'help': this.openHelp('slides'); break;
       default: break;
     }
   }
@@ -101,6 +114,17 @@ export class SlidePageComponent implements OnInit {
       <div class="nav">Use browser to navigate</div></body></html>`;
     w.document.write(html); w.document.close();
   }
+  private promptZoom(){ const v = prompt('Zoom % (e.g. 100)', String(Math.round(this.zoom*100))); if (v!==null){ const f = parseFloat(v); if(!isNaN(f) && f>10 && f<=400) this.zoom = f/100; }}
+  private focusEditor(){ setTimeout(() => { const ta = document.querySelector('textarea'); (ta as HTMLTextAreaElement|undefined)?.focus(); }, 0); }
+  private insertImagePlaceholder(){ const ta = document.querySelector('textarea') as HTMLTextAreaElement | null; const url = prompt('Image URL'); if (ta && url){ const ins = `\n[Image] ${url}\n`; const start = ta.selectionStart||0; const end = ta.selectionEnd||0; const cur = ta.value; const out = cur.slice(0,start) + ins + cur.slice(end); ta.value = out; this.onSlideChange(0, out); }}
+  private insertShapeMarker(){ const ta = document.querySelector('textarea') as HTMLTextAreaElement | null; if (!ta) return; const ins = `\n[Shape: rectangle]\n`; const start = ta.selectionStart||0; const end = ta.selectionEnd||0; const cur = ta.value; const out = cur.slice(0,start) + ins + cur.slice(end); ta.value = out; this.onSlideChange(0, out); }
+  private formatSelectionUppercase(){ const ta = document.querySelector('textarea') as HTMLTextAreaElement | null; if (!ta) return; const start = ta.selectionStart||0; const end = ta.selectionEnd||0; const sel = ta.value.slice(start,end); const rep = sel.toUpperCase(); const out = ta.value.slice(0,start)+rep+ta.value.slice(end); ta.value = out; this.onSlideChange(0, out); }
+  private insertAlignMarker(kind: 'left'|'center'){ const ta = document.querySelector('textarea') as HTMLTextAreaElement | null; if (!ta) return; const ins = kind==='center'? '\n[Align: center]\n' : '\n[Align: left]\n'; const start = ta.selectionStart||0; const end = ta.selectionEnd||0; const cur = ta.value; const out = cur.slice(0,start)+ins+cur.slice(end); ta.value=out; this.onSlideChange(0,out); }
+  private moveFirstToLast(){ if (this.slides.length>1){ const [first]=this.slides.splice(0,1); this.slides.push(first); this.queueSave(); } }
+  private showGridOverview(){ window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  private toggleTextareaSpellcheck(){ const ta = document.querySelector('textarea') as HTMLTextAreaElement | null; if (ta) ta.spellcheck = !ta.spellcheck; }
+  private importDeck(){ const el = document.createElement('input'); el.type='file'; el.accept='.json,application/json'; el.onchange = async () => { const f = el.files && el.files[0]; if (!f) return; const txt = await f.text().catch(()=>null); try{ const parsed = JSON.parse(txt||'{}'); if (Array.isArray(parsed.slides)){ this.slides = parsed.slides.map((s:any,i:number)=>({ id: String(i+1), text: String(s.text||'') })); this.queueSave(); alert('Imported slides.'); } else { alert('Invalid file format.'); } } catch { alert('Invalid JSON.'); } }; el.click(); }
+  private openHelp(app: 'docs'|'sheets'|'slides'|'pdf'){ const sp = localStorage.getItem(`berjis_help_url_${app}`); const g = localStorage.getItem('berjis_help_url'); const u = sp||g||`/help/${app}`; window.open(u, '_blank'); }
 
   confirmOpen(){ const id=(this.openId||'').trim(); if (id){ this.openModal=false; this.router.navigate(['/slide', id]); } }
   cancelOpen(){ this.openModal=false; }

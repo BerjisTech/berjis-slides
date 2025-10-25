@@ -46,7 +46,7 @@
 
 </div>
 
-<div #editorMainPane class="p-4 grid grid-cols-4 gap-4">
+<div #editorMainPane class="p-4 grid grid-cols-4 gap-4" [style.zoom]="zoom">
   <div class="col-span-1 space-y-2">
     <div class="text-sm font-medium text-gray-600">Slides</div>
     <div *ngFor="let s of slides; let i = index" class="border rounded p-2 cursor-pointer bg-white">

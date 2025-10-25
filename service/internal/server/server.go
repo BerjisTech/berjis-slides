@@ -25,10 +25,10 @@ type Slide struct {
 
 func New(opts Options) *fiber.App {
     app := fiber.New()
-    // CORS reflect for berjis.test w/ credentials
+    // CORS reflect for berjis.tech w/ credentials
     app.Use(func(c *fiber.Ctx) error {
         origin := c.Get("Origin"); if origin != "" {
-            if origin == "http://berjis.test" || strings.HasSuffix(origin, ".berjis.test") {
+            if origin == "http://berjis.tech" || strings.HasSuffix(origin, ".berjis.tech") {
                 c.Set("Access-Control-Allow-Origin", origin)
                 c.Set("Vary", "Origin")
                 c.Set("Access-Control-Allow-Credentials", "true")
