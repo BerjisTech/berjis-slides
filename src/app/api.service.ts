@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 
-const apiBase = 'http://api.berjis.tech';
+const apiBase = 'https://api.berjis.tech';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {

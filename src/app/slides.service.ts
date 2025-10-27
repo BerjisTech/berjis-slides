@@ -5,7 +5,7 @@ import { firstValueFrom } from 'rxjs';
 export type SlideStatus = 'active'|'archived'|'deleted';
 export interface SlideDoc { id: string; title?: string; data?: any; status: SlideStatus; createdAt: string; updatedAt: string }
 
-const API_BASE = 'http://slides-api.berjis.tech';
+const API_BASE = 'https://slides-api.berjis.tech';
 const STORAGE_KEY = 'berjis-slides';
 
 @Injectable({ providedIn: 'root' })
