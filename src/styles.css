@@ -1,8 +1,9 @@
-@import "tailwindcss";
-@custom-variant dark (&:where(.dark, .dark *));
 @import "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined";
 @import "tailwindcss";
-@custom-variant dark (&:where(.dark, .dark *));
+
+
+
+
 
 @theme {
   --color-bg-light-start: #eff6ff; --color-bg-light-end: #f8fafc;

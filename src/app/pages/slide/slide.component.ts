@@ -20,6 +20,11 @@ export class SlidePageComponent implements OnInit {
   openQuery = '';
   openRows: SlideDoc[] = [];
   openFiltered: SlideDoc[] = [];
+  // Share modal
+  shareOpen = false;
+  shareRows: { userId: string; role: 'viewer'|'commenter'|'editor' }[] = [];
+  shareUserId = '';
+  shareRole: 'viewer'|'commenter'|'editor' = 'viewer';
   contextMenus: { name: string, menus: { icon: string, name: string, action: string }[] }[] = [
     { name: 'File', menus: [
       { icon: '', name: 'New', action: 'new' },
@@ -90,6 +95,7 @@ export class SlidePageComponent implements OnInit {
       case 'alignH': this.insertAlignMarker('left'); break;
       case 'spelling': this.toggleTextareaSpellcheck(); break;
       case 'help': this.openHelp('slides'); break;
+      case 'share': this.openShare(); break;
       default: break;
     }
   }
@@ -99,6 +105,13 @@ export class SlidePageComponent implements OnInit {
     const created = await this.svc.create({ title: (this.deck.title||'Untitled')+ ' (Copy)', data: { slides: this.slides } });
     this.deck = created; this.router.navigate(['/slide', created.id]);
   }
+
+  // Share
+  openShare(){ this.shareOpen = true; this.loadCollaborators(); }
+  private get id(): string | null { return this.deck?.id ?? null; }
+  async loadCollaborators(){ const id=this.id; if(!id){ this.shareRows=[]; return; } try { const res=await fetch(`/v1/slides/${encodeURIComponent(id)}/collaborators`, { credentials:'include' }); const j=await res.json(); const rows=(j?.data||[]) as any[]; this.shareRows = rows.map(r => ({ userId: r.userId||r.user_id, role: (r.role||'viewer') })); } catch { this.shareRows=[]; } }
+  async addCollaborator(){ const id=this.id; if(!id) return; const userId=this.shareUserId.trim(); if(!userId) return; const role=this.shareRole; await fetch(`/v1/slides/${encodeURIComponent(id)}/collaborators`, { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ userId, role }) }); this.shareUserId=''; await this.loadCollaborators(); }
+  async removeCollaborator(uid:string){ const id=this.id; if(!id) return; await fetch(`/v1/slides/${encodeURIComponent(id)}/collaborators?user_id=${encodeURIComponent(uid)}`, { method:'DELETE', credentials:'include' }); await this.loadCollaborators(); }
   private downloadDeck(){
     const name = ((this.deck?.title)||'presentation').replace(/\s+/g,'-').slice(0,80);
     const blob = new Blob([JSON.stringify({ title: this.deck?.title||'', slides: this.slides }, null, 2)], { type: 'application/json' });
