@@ -2,11 +2,13 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	coreauth "github.com/berjistech/berjis-ecosystem/shared/coreauth"
 	"github.com/gofiber/fiber/v2"
 	"github.com/jmoiron/sqlx"
 )
@@ -28,6 +30,19 @@ type Slide struct {
 
 func New(opts Options) *fiber.App {
 	app := fiber.New()
+	httpClientAuth := &http.Client{Timeout: 5 * time.Second}
+	var authVerifier *coreauth.Verifier
+	coreAPIBase := strings.TrimSpace(opts.CoreAPIBase)
+	if coreAPIBase != "" {
+		if v, err := coreauth.NewVerifier(coreauth.Config{
+			CoreAPIBase: coreAPIBase,
+			HTTPClient:  httpClientAuth,
+		}); err != nil {
+			fmt.Printf("warn: slides coreauth verifier init failed: %v\n", err)
+		} else {
+			authVerifier = v
+		}
+	}
 	// CORS reflect for berjis.tech w/ credentials
 	app.Use(func(c *fiber.Ctx) error {
 		origin := c.Get("Origin")
@@ -49,12 +64,38 @@ func New(opts Options) *fiber.App {
 	app.Get("/v1/health", func(c *fiber.Ctx) error { return c.JSON(fiber.Map{"success": true}) })
 
 	getUID := func(c *fiber.Ctx) (string, error) {
-        req, _ := http.NewRequest(http.MethodPost, strings.TrimRight(opts.CoreAPIBase, "/")+"/v1/auth/verify", nil)
-        // Prefer Authorization if provided; fall back to cookies.
-        if v := c.Get("Authorization"); v != "" { req.Header.Set("Authorization", v) }
-        if v := c.Get("Cookie"); v != "" { req.Header.Set("Cookie", v) }
-		client := &http.Client{Timeout: 3 * time.Second}
-		resp, err := client.Do(req)
+		authz := strings.TrimSpace(c.Get("Authorization"))
+		token := bearerToken(authz)
+		if token != "" && authVerifier != nil {
+			if claims, err := authVerifier.Verify(token); err == nil {
+				if uuid := strings.TrimSpace(claims.UUID); uuid != "" {
+					return uuid, nil
+				}
+			} else {
+				if errors.Is(err, coreauth.ErrTokenInvalid) || errors.Is(err, coreauth.ErrTokenExpired) || errors.Is(err, coreauth.ErrTokenMissing) {
+					return "", fiber.ErrUnauthorized
+				}
+				if !errors.Is(err, coreauth.ErrJWKSUnavailable) {
+					fmt.Printf("warn: slides coreauth verify failed: %v\n", err)
+				}
+			}
+		}
+
+		if coreAPIBase == "" {
+			return "", fiber.ErrUnauthorized
+		}
+		req, _ := http.NewRequest(http.MethodPost, strings.TrimRight(coreAPIBase, "/")+"/v1/auth/verify", nil)
+		if authz != "" {
+			req.Header.Set("Authorization", authz)
+		}
+		if v := c.Get("Cookie"); v != "" {
+			req.Header.Set("Cookie", v)
+		}
+		if v := c.Get("Origin"); v != "" {
+			req.Header.Set("Origin", v)
+		}
+		req.Header.Set("Accept", "application/json")
+		resp, err := httpClientAuth.Do(req)
 		if err != nil {
 			return "", err
 		}
@@ -67,22 +108,45 @@ func New(opts Options) *fiber.App {
 		if data == nil {
 			return "", fiber.ErrUnauthorized
 		}
-		valid, _ := data["valid"].(bool)
-		if !valid {
+		if ok, _ := data["valid"].(bool); !ok {
 			return "", fiber.ErrUnauthorized
+		}
+		if uuidStr, ok := data["uuid"].(string); ok && strings.TrimSpace(uuidStr) != "" {
+			return strings.TrimSpace(uuidStr), nil
 		}
 		if uidAny, ok := data["uid"]; ok {
 			switch v := uidAny.(type) {
 			case float64:
 				return fmt.Sprintf("%0.0f", v), nil
 			case string:
-				return v, nil
+				if s := strings.TrimSpace(v); s != "" {
+					return s, nil
+				}
 			}
 		}
-		if s, ok := data["userId"].(string); ok && s != "" {
-			return s, nil
+		if s, ok := data["userId"].(string); ok && strings.TrimSpace(s) != "" {
+			return strings.TrimSpace(s), nil
 		}
 		return "", fiber.ErrUnauthorized
+	}
+
+	setStatus := func(c *fiber.Ctx, status string) error {
+		if opts.DB == nil {
+			return c.Status(500).JSON(fiber.Map{"success": false})
+		}
+		uid, err := getUID(c)
+		if err != nil {
+			return c.Status(401).JSON(fiber.Map{"success": false})
+		}
+		id := c.Params("id")
+		var s Slide
+		if err := opts.DB.Get(&s, `UPDATE slides SET status=$1, updated_at=now() WHERE id=$2 AND (
+        user_id=$3 OR EXISTS(SELECT 1 FROM slide_collaborators sc WHERE sc.slide_id=$2 AND sc.user_id=$3 AND sc.role='editor')
+      )
+        RETURNING id, user_id, title, COALESCE(data,'null'::jsonb) AS data, status, created_at, updated_at`, status, id, uid); err != nil {
+			return c.Status(404).JSON(fiber.Map{"success": false, "message": err.Error()})
+		}
+		return c.JSON(fiber.Map{"success": true, "data": s})
 	}
 
 	// List
@@ -212,9 +276,9 @@ func New(opts Options) *fiber.App {
 		return c.JSON(fiber.Map{"success": true, "data": s})
 	})
 
-	app.Post("/v1/slides/:id/archive", func(c *fiber.Ctx) error { return setStatus(opts, c, "archived") })
-	app.Post("/v1/slides/:id/restore", func(c *fiber.Ctx) error { return setStatus(opts, c, "active") })
-	app.Delete("/v1/slides/:id", func(c *fiber.Ctx) error { return setStatus(opts, c, "deleted") })
+	app.Post("/v1/slides/:id/archive", func(c *fiber.Ctx) error { return setStatus(c, "archived") })
+	app.Post("/v1/slides/:id/restore", func(c *fiber.Ctx) error { return setStatus(c, "active") })
+	app.Delete("/v1/slides/:id", func(c *fiber.Ctx) error { return setStatus(c, "deleted") })
 
 	// Collaborators (owner-managed)
 	app.Get("/v1/slides/:id/collaborators", func(c *fiber.Ctx) error {
@@ -300,59 +364,6 @@ func New(opts Options) *fiber.App {
 	return app
 }
 
-func setStatus(opts Options, c *fiber.Ctx, status string) error {
-	if opts.DB == nil {
-		return c.Status(500).JSON(fiber.Map{"success": false})
-	}
-	uid, err := func() (string, error) {
-        req, _ := http.NewRequest(http.MethodPost, strings.TrimRight(opts.CoreAPIBase, "/")+"/v1/auth/verify", nil)
-        if v := c.Get("Authorization"); v != "" { req.Header.Set("Authorization", v) }
-        if v := c.Get("Cookie"); v != "" { req.Header.Set("Cookie", v) }
-		client := &http.Client{Timeout: 3 * time.Second}
-		resp, err := client.Do(req)
-		if err != nil {
-			return "", err
-		}
-		defer resp.Body.Close()
-		var raw map[string]any
-		if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
-			return "", err
-		}
-		data, _ := raw["data"].(map[string]any)
-		if data == nil {
-			return "", fiber.ErrUnauthorized
-		}
-		valid, _ := data["valid"].(bool)
-		if !valid {
-			return "", fiber.ErrUnauthorized
-		}
-		if uidAny, ok := data["uid"]; ok {
-			switch v := uidAny.(type) {
-			case float64:
-				return fmt.Sprintf("%0.0f", v), nil
-			case string:
-				return v, nil
-			}
-		}
-		if s, ok := data["userId"].(string); ok && s != "" {
-			return s, nil
-		}
-		return "", fiber.ErrUnauthorized
-	}()
-	if err != nil {
-		return c.Status(401).JSON(fiber.Map{"success": false})
-	}
-	id := c.Params("id")
-	var s Slide
-	if err := opts.DB.Get(&s, `UPDATE slides SET status=$1, updated_at=now() WHERE id=$2 AND (
-        user_id=$3 OR EXISTS(SELECT 1 FROM slide_collaborators sc WHERE sc.slide_id=$2 AND sc.user_id=$3 AND sc.role='editor')
-      )
-        RETURNING id, user_id, title, COALESCE(data,'null'::jsonb) AS data, status, created_at, updated_at`, status, id, uid); err != nil {
-		return c.Status(404).JSON(fiber.Map{"success": false, "message": err.Error()})
-	}
-	return c.JSON(fiber.Map{"success": true, "data": s})
-}
-
 func optStr(p *string) string {
 	if p == nil {
 		return ""
@@ -364,4 +375,12 @@ func defaultJSON(j json.RawMessage) json.RawMessage {
 		return json.RawMessage("null")
 	}
 	return j
+}
+
+func bearerToken(header string) string {
+	header = strings.TrimSpace(header)
+	if strings.HasPrefix(strings.ToLower(header), "bearer ") {
+		return strings.TrimSpace(header[7:])
+	}
+	return ""
 }

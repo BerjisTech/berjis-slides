@@ -1,11 +1,12 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
+import { environment } from '../environments/environment';
 
 export type SlideStatus = 'active'|'archived'|'deleted';
 export interface SlideDoc { id: string; title?: string; data?: any; status: SlideStatus; createdAt: string; updatedAt: string }
 
-const API_BASE = 'https://slides-api.berjis.tech';
+const API_BASE = normalizeBase(environment.slidesApiBase || 'https://slides-api.berjis.tech');
 const STORAGE_KEY = 'berjis-slides';
 
 @Injectable({ providedIn: 'root' })
@@ -82,4 +83,9 @@ export class SlidesService {
 }
 
 export function defaultSlides(){ return { slides: [ { id: '1', text: '' } ] }; }
+
+function normalizeBase(base: string): string {
+  if (!base) return '';
+  return base.replace(/\/+$/, '');
+}
 
