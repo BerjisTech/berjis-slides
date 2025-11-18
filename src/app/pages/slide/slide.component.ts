@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { SlidesService, SlideCollaborator, SlideDoc, defaultSlides } from '../../slides.service';
-import { CANVAS_HEIGHT, CANVAS_WIDTH, GRID_SIZE, SlideElement, SlideLayout, SlideModel, cloneSlide, createSlide, createTextElement } from '../../models/slide';
+import { CANVAS_HEIGHT, CANVAS_WIDTH, GRID_SIZE, SlideElement, SlideLayout, SlideModel, cloneSlide, createShapeElement, createSlide, createTextElement } from '../../models/slide';
 
 interface AlignmentGuides {
   vertical: number | null;
@@ -59,7 +59,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   renameTitle = '';
 
   pendingSave?: ReturnType<typeof setTimeout>;
-  insertMode: 'text' | null = null;
+  insertMode: 'text' | 'shape' | null = null;
   readonly fontFamilies = [
     'Inter',
     'Roboto',
@@ -90,6 +90,11 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   recentTextColors: string[] = [];
   readonly lineHeightRange = { min: 0.8, max: 2.5, step: 0.1 };
   readonly bulletStyles: ('none' | 'bullet' | 'number')[] = ['none', 'bullet', 'number'];
+  shapeVariant: 'rectangle' | 'square' = 'rectangle';
+  readonly shapePresets: Record<'rectangle' | 'square', { width: number; height: number }> = {
+    rectangle: { width: 260, height: 160 },
+    square: { width: 180, height: 180 }
+  };
 
   contextMenus: { name: string; menus: { name: string; action: string }[] }[] = [
     {
@@ -208,6 +213,15 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.insertMode = this.insertMode === mode ? null : mode;
   }
 
+  toggleShapeInsert(kind: 'rectangle' | 'square') {
+    if (this.insertMode === 'shape' && this.shapeVariant === kind) {
+      this.insertMode = null;
+      return;
+    }
+    this.shapeVariant = kind;
+    this.insertMode = 'shape';
+  }
+
   selectSlide(index: number) {
     this.selectedSlideIndex = index;
     this.selectedElementId = null;
@@ -296,6 +310,10 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       this.insertTextElement(event);
       return;
     }
+    if (this.insertMode === 'shape' && event.button === 0) {
+      this.insertShapeElement(event);
+      return;
+    }
     this.selectedElementId = null;
   }
 
@@ -372,6 +390,31 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       height,
       fontSize: 28,
       align: 'left'
+    });
+    slide.elements.push(element);
+    this.selectedElementId = element.id;
+    this.insertMode = null;
+    this.alignmentGuides = { vertical: null, horizontal: null };
+    this.queueSave();
+  }
+
+  private insertShapeElement(event: PointerEvent) {
+    const slide = this.activeSlide;
+    if (!slide) {
+      return;
+    }
+    event.preventDefault();
+    const preset = this.shapePresets[this.shapeVariant] ?? this.shapePresets.rectangle;
+    const { x, y } = this.clientToCanvas(event);
+    const width = preset.width;
+    const height = preset.height;
+    const elementX = this.clamp(x - width / 2, 0, this.canvasWidth - width);
+    const elementY = this.clamp(y - height / 2, 0, this.canvasHeight - height);
+    const element = createShapeElement({
+      x: elementX,
+      y: elementY,
+      width,
+      height
     });
     slide.elements.push(element);
     this.selectedElementId = element.id;

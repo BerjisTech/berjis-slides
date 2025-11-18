@@ -44,7 +44,7 @@ Build a full-featured online presentation editor (like PowerPoint/Google Slides)
 - [x] Text wrapping within text box boundaries
 
 ### **Shape Elements**
-- [ ] Rectangle/Square tool
+- [x] Rectangle/Square tool
 - [ ] Circle/Ellipse tool
 - [ ] Triangle tool
 - [ ] Line/Arrow tool

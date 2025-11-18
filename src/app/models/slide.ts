@@ -99,7 +99,17 @@ export function createId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 8)}${Date.now().toString(36).slice(-4)}`;
 }
 
-function createShapeElement(opts: { x: number; y: number; width: number; height: number; fill?: string; stroke?: string }): SlideElement {
+export interface ShapeElementOptions {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fill?: string;
+  stroke?: string;
+  radius?: number;
+}
+
+export function createShapeElement(opts: ShapeElementOptions): SlideElement {
   return {
     id: createId('el'),
     type: 'shape',
@@ -111,7 +121,7 @@ function createShapeElement(opts: { x: number; y: number; width: number; height:
     data: {
       fill: opts.fill ?? '#cbd5f5',
       stroke: opts.stroke ?? '#1d4ed8',
-      radius: 12,
+      radius: opts.radius ?? 12,
     },
   };
 }
