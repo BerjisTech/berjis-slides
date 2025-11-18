@@ -1,136 +1,101 @@
-<div class="w-full h-[145px] overflow-visible ps-[30px] p-3 relative z-20">
-  <div class="h-[70px] flex items-center justify-start gap-3 rounded-2xl bg-white/90 dark:bg-slate-900/80 shadow-brand px-4 py-3">
+<div class="w-full h-[145px] overflow-visible px-6 py-4 relative z-20">
+  <div class="h-[70px] flex items-center justify-start gap-4 rounded-2xl bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100 shadow-brand px-4 py-3">
     <a routerLink="/" class="h-full w-[70px] bg-blue-500/90 dark:bg-blue-400/80 text-white rounded flex items-center justify-center font-semibold">Icon</a>
     <div class="flex-grow">
-      <div class="flex items-center-safe justify-start gap-2">
-        <input class="text-2xl font-semibold outline-none bg-transparent py-1 text-slate-900 dark:text-slate-50" placeholder="Untitled document"
-          [(ngModel)]="deck!.title" (ngModelChange)="onTitleChange()" />
-
+      <div class="flex items-center justify-start gap-2">
+        <input class="text-2xl font-semibold outline-none bg-transparent py-1 text-slate-900 dark:text-slate-50"
+          placeholder="Untitled presentation" [(ngModel)]="deck!.title" (ngModelChange)="queueSave()" />
         <div class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
-          <span>start</span>
-          <span class="inline-block h-2 w-2 rounded-full" [class.bg-green-500]="svc.syncMode==='remote'"
-            [class.bg-amber-400]="svc.syncMode==='local'"></span>
+          <span class="inline-block h-2 w-2 rounded-full" [class.bg-green-500]="svc.syncMode==='remote'" [class.bg-amber-400]="svc.syncMode==='local'"></span>
           <span>Sync: {{ svc.syncMode === 'remote' ? 'Server' : 'Local' }}</span>
           <span *ngIf="svc.isSaving" class="text-gray-500 dark:text-gray-300">• Saving…</span>
-          <span *ngIf="!svc.isSaving && svc.lastSavedAt" class="text-gray-500 dark:text-gray-300">• Saved {{ svc.lastSavedAt |
-            date:'shortTime' }}</span>
+          <span *ngIf="!svc.isSaving && svc.lastSavedAt" class="text-gray-500 dark:text-gray-300">• Saved {{ svc.lastSavedAt | date:'shortTime' }}</span>
           <span *ngIf="svc.lastError" class="text-red-600 dark:text-rose-400">• {{ svc.lastError }}</span>
         </div>
       </div>
-      <div class="flex items-center justify-start text-slate-700 dark:text-slate-200">
-        <span *ngFor="let contextMenu of contextMenus"
-          class="group hover:bg-slate-200/80 dark:hover:bg-slate-700/70 px-3 rounded hover:shadow cursor-pointer relative">
-          {{contextMenu.name}}
-          <div
-            class="hidden group-hover:block absolute top-[100%] left-0 rounded shadow bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 z-[50000] overflow-visible min-w-[200px]">
-            <div *ngFor="let menu of contextMenu.menus" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
-              (click)="onMenu(menu.action); $event.stopPropagation();">{{menu.name}}
-            </div>
+      <div class="flex items-center justify-start gap-1 text-sm text-slate-600 dark:text-slate-300">
+        <span *ngFor="let group of contextMenus" class="group relative px-3 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer select-none">
+          {{ group.name }}
+          <div class="hidden group-hover:block absolute top-full left-0 mt-1 rounded-lg shadow bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 min-w-[200px] z-50">
+            <button type="button" *ngFor="let menu of group.menus" class="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700"
+              (click)="onMenu(menu.action); $event.stopPropagation();">
+              {{ menu.name }}
+            </button>
           </div>
         </span>
       </div>
     </div>
-    <div class="h-full flex items-center justify-end gap-2 text-slate-600 dark:text-slate-300">
+    <div class="h-full flex items-center justify-end gap-3 text-slate-700 dark:text-slate-200">
       <div class="hidden sm:block">History</div>
       <div class="hidden sm:block">Comment</div>
       <button class="px-3 py-1 border border-slate-200 dark:border-slate-600 rounded text-sm font-medium text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 disabled:opacity-50"
         (click)="openShare()" [disabled]="!canShare">Share</button>
-      <div>Ai</div>
-      <div>User</div>
     </div>
   </div>
-
-  <div class="flex flex-wrap items-center gap-1 p-2 rounded bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 sticky mt-3 top-0 z-10 text-slate-600 dark:text-slate-200">
-    <button class="px-2 py-1 border rounded border-slate-200 dark:border-slate-600" title="Undo">↶</button>
-    <button class="px-2 py-1 border rounded border-slate-200 dark:border-slate-600" title="Redo">↷</button>
-  </div>
-
 </div>
 
-<!-- Share Modal -->
-<div *ngIf="shareOpen" class="fixed inset-0 bg-black/40 dark:bg-black/60 flex items-center justify-center z-[60000] p-4">
-  <div class="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-[520px] p-5 text-slate-900 dark:text-slate-100">
-    <div class="flex items-center justify-between mb-2">
-      <div class="text-lg font-semibold">Share Presentation</div>
-      <button class="px-2 py-1 border border-slate-200 dark:border-slate-600 rounded" (click)="shareOpen=false">Close</button>
+<div class="px-6 pb-10 flex flex-col gap-4">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="flex flex-wrap items-center gap-2 text-sm">
+      <button class="px-3 py-1 rounded border border-slate-200 dark:border-slate-700" (click)="addSlide('blank')">+ Blank</button>
+      <button class="px-3 py-1 rounded border border-slate-200 dark:border-slate-700" (click)="addSlide('title')">+ Title</button>
+      <button class="px-3 py-1 rounded border border-slate-200 dark:border-slate-700" (click)="addSlide('title-content')">+ Title & Content</button>
+      <button class="px-3 py-1 rounded border border-slate-200 dark:border-slate-700" (click)="duplicateSlide()">Duplicate</button>
+      <button class="px-3 py-1 rounded border border-slate-200 dark:border-red-300 text-red-600" (click)="deleteSlide()">Delete</button>
     </div>
-    <ng-container *ngIf="canShare; else shareNeedsSave">
-      <div class="flex flex-col gap-2 sm:flex-row">
-        <input class="flex-1 border border-slate-200 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-800" placeholder="User ID (UUID)" [(ngModel)]="shareUserId" [disabled]="shareLoading" />
-        <select class="border border-slate-200 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-800" [(ngModel)]="shareRole" [disabled]="shareLoading">
-          <option value="viewer">Viewer</option>
-          <option value="commenter">Commenter</option>
-          <option value="editor">Editor</option>
-        </select>
-        <button class="rounded bg-blue-600 text-white px-3 py-1 text-sm disabled:opacity-50" (click)="addCollaborator()" [disabled]="shareLoading">Add</button>
-      </div>
-      <div class="mt-3 max-h-[240px] overflow-y-auto rounded border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-800">
-        <div *ngFor="let r of shareRows" class="flex items-center justify-between px-3 py-2 text-sm">
-          <div>
-            <div class="font-medium">{{ r.userId }}</div>
-            <div class="text-xs text-slate-500">{{ r.role | titlecase }} • Added {{ r.createdAt | date:'medium' }}</div>
-            <div *ngIf="r.invitedBy" class="text-xs text-slate-400">Invited by {{ r.invitedBy }}</div>
+    <div class="flex flex-wrap items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+      <button class="px-2 py-1 border border-slate-200 dark:border-slate-700 rounded" (click)="prevSlide()">◀</button>
+      <span class="font-medium">Slide {{ slideCounterLabel }}</span>
+      <button class="px-2 py-1 border border-slate-200 dark:border-slate-700 rounded" (click)="nextSlide()">▶</button>
+      <select class="border border-slate-200 dark:border-slate-700 rounded px-2 py-1 bg-white dark:bg-slate-800" [(ngModel)]="zoom" (ngModelChange)="changeZoom($event)">
+        <option *ngFor="let lvl of zoomLevels" [ngValue]="lvl">{{ lvl * 100 | number:'1.0-0' }}%</option>
+      </select>
+      <span class="text-xs">Hold space + drag to pan</span>
+    </div>
+  </div>
+
+  <div class="flex gap-4 items-start">
+    <aside class="w-56 bg-white/90 dark:bg-slate-900/70 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-3">
+      <div class="text-sm font-semibold mb-3 text-slate-700 dark:text-slate-200">Slides</div>
+      <div class="flex flex-col gap-2 max-h-[70vh] overflow-auto">
+        <button type="button" *ngFor="let slide of slides; let i = index"
+          class="border rounded-xl p-2 text-left bg-white dark:bg-slate-900/60 cursor-pointer transition shadow-sm hover:shadow-md"
+          [class.border-blue-500]="selectedSlideIndex === i"
+          draggable="true"
+          (dragstart)="onThumbDragStart(i)"
+          (dragover)="onThumbDragOver($event, i)"
+          (drop)="onThumbDrop($event, i)"
+          (dragend)="onThumbDragEnd()"
+          (click)="selectSlide(i)">
+          <div class="text-xs text-slate-500 flex items-center justify-between">
+            <span>Slide {{ i + 1 }}</span>
+            <span *ngIf="dragOverIndex === i" class="text-blue-500">●</span>
           </div>
-          <button class="rounded border border-slate-200 dark:border-slate-600 px-2 py-1 text-xs" (click)="removeCollaborator(r.userId)" [disabled]="shareLoading">Remove</button>
-        </div>
-        <div *ngIf="!shareRows.length" class="px-3 py-2 text-xs text-slate-500">No collaborators yet.</div>
+          <svg [attr.viewBox]="'0 0 ' + canvasWidth + ' ' + canvasHeight" class="w-full mt-2 rounded border border-slate-200 dark:border-slate-700 bg-slate-50">
+            <g *ngFor="let element of slide.elements">
+              <rect *ngIf="element.type === 'shape'" [attr.x]="element.x" [attr.y]="element.y" [attr.width]="element.width" [attr.height]="element.height"
+                [attr.rx]="element.data.radius || 8" [attr.fill]="element.data.fill || '#cbd5f5'" [attr.stroke]="element.data.stroke || 'transparent'" stroke-width="1" />
+              <text *ngIf="element.type === 'text'" [attr.x]="element.x + 12" [attr.y]="element.y + (element.data.fontSize || 24)"
+                [attr.font-size]="element.data.fontSize || 24" fill="#0f172a">{{ element.data.text }}</text>
+            </g>
+          </svg>
+        </button>
       </div>
-      <div *ngIf="shareLoading" class="mt-2 text-xs text-slate-500">Syncing collaborators…</div>
-    </ng-container>
-    <ng-template #shareNeedsSave>
-      <p class="mt-2 text-sm text-slate-500">Save your presentation to invite collaborators.</p>
-    </ng-template>
-    <div *ngIf="shareError" class="mt-2 text-sm text-red-600">{{ shareError }}</div>
-  </div>
-</div>
+    </aside>
 
-<div #editorMainPane class="p-4 grid grid-cols-4 gap-4" [style.zoom]="zoom">
-  <div class="col-span-1 space-y-2 text-slate-700 dark:text-slate-200">
-    <div class="text-sm font-medium">Slides</div>
-    <div *ngFor="let s of slides; let i = index" class="border border-slate-200 dark:border-slate-700 rounded p-2 cursor-pointer bg-white/90 dark:bg-slate-900/40">
-      <div class="text-xs text-gray-500 dark:text-slate-400">Slide {{ i+1 }}</div>
-      <div class="truncate">{{ s.text || 'Empty' }}</div>
-    </div>
-    <button class="mt-2 text-sm px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-500" (click)="addSlide()">Add slide</button>
-  </div>
-  <div class="col-span-3">
-    <div class="border border-slate-200 dark:border-slate-700 rounded-2xl p-4 bg-slate-50/80 dark:bg-slate-900/60 min-h-[400px]">
-      <textarea class="w-full h-[360px] border border-slate-200 dark:border-slate-700 rounded-lg p-3 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100"
-        placeholder="Type your slide content here"
-        [ngModel]="slides[0]?.text" (ngModelChange)="onSlideChange(0, $event)"></textarea>
-    </div>
-  </div>
-</div>
-
-<!-- Open Modal -->
-<div *ngIf="openModal" class="fixed inset-0 bg-black/40 dark:bg-black/60 flex items-center justify-center z-[60000] p-4">
-  <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-[900px] max-w-[90vw] p-6 text-slate-900 dark:text-slate-100">
-    <div class="flex items-center justify-between mb-3">
-      <div class="text-lg font-semibold">Open Presentation</div>
-      <button class="px-2 py-1 border border-slate-200 dark:border-slate-600 rounded" (click)="cancelOpen()">Close</button>
-    </div>
-    <input class="w-full border border-slate-200 dark:border-slate-700 rounded px-3 py-2 mb-4 bg-white dark:bg-slate-800" [(ngModel)]="openQuery" (ngModelChange)="onOpenQueryChange()"
-      placeholder="Search by title or content" />
-    <div class="grid grid-cols-5 auto-rows-[220px] gap-3">
-      <a (click)="openDeck(d)" *ngFor="let d of openFiltered" class="shadow rounded bg-white/95 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 flex flex-col p-2 cursor-pointer hover:shadow-xl">
-        <div class="font-medium truncate text-slate-900 dark:text-slate-50">{{ d.title || 'Untitled' }}</div>
-        <div class="text-xs text-gray-500 dark:text-slate-400 mt-1">{{ d.updatedAt | date:'medium' }}</div>
-        <div class="flex-grow"></div>
-        <div class="text-blue-600 dark:text-blue-300 text-sm">Open</div>
-      </a>
-    </div>
-  </div>
-</div>
-
-<!-- Rename Modal -->
-<div *ngIf="renameModal" class="fixed inset-0 bg-black/40 dark:bg-black/60 flex items-center justify-center z-[60000] p-4">
-  <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-[520px] max-w-[90vw] p-5 text-slate-900 dark:text-slate-100">
-    <div class="text-lg font-semibold mb-2">Rename Presentation</div>
-    <label class="text-sm text-gray-600 dark:text-slate-300">Title</label>
-    <input class="w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1 mt-1 bg-white dark:bg-slate-800" [(ngModel)]="renameTitle" placeholder="Untitled presentation" />
-    <div class="flex items-center justify-end gap-2 mt-3">
-      <button class="px-3 py-1 border border-slate-200 dark:border-slate-700 rounded" (click)="cancelRename()">Cancel</button>
-      <button class="px-3 py-1 bg-blue-600 text-white rounded" (click)="confirmRename()">Save</button>
-    </div>
-  </div>
-</div>
+    <div class="flex-1 space-y-3">
+      <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+        <div>Grid: {{ gridSize }}px • Zoom: {{ (zoom * 100) | number:'1.0-0' }}%</div>
+        <div>Pan offset: {{ pan.x | number:'1.0-0' }}, {{ pan.y | number:'1.0-0' }}</div>
+      </div>
+      <div class="relative rounded-3xl bg-white dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 shadow-xl p-4" #canvasSurface (pointerdown)="onCanvasPointerDown($event)">
+        <div class="absolute top-0 left-12 right-0 h-8 bg-slate-200/70 dark:bg-slate-700/70 border-b border-slate-300 dark:border-slate-600" [ngStyle]="horizontalRulerStyle"></div>
+        <div class="absolute top-12 left-0 bottom-0 w-8 bg-slate-200/70 dark:bg-slate-700/70 border-r border-slate-300 dark:border-slate-600" [ngStyle]="verticalRulerStyle"></div>
+        <div class="ml-12 mt-12 overflow-hidden rounded-2xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 min-h-[600px] select-none">
+          <div class="relative" [style.width.px]="canvasWidth + 400" [style.height.px]="canvasHeight + 400">
+            <div class="absolute" [style.transform]="canvasTransform" [style.width.px]="canvasWidth" [style.height.px]="canvasHeight">
+              <div class="absolute inset-0" [ngStyle]="gridStyle"></div>
+              <svg [attr.viewBox]="'0 0 ' + canvasWidth + ' ' + canvasHeight" class="relative z-10 w-full h-full">
+                <g *ngFor="let element of activeSlide?.elements" (pointerdown)="onElementPointerDown($event, element)" class="cursor-move">
+                  <rect *ngIf="element.type === 'shape'" [attr.x]="element.x" [attr.y]="element.y" [attr.width]="element.width" [attr.height]="element.height"
+                    [attr.rx]="element.data.radius || 12" [attr.fill]="element.data.fill || '#cbd5f5'" [attr.

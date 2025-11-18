@@ -2,12 +2,13 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../environments/environment';
+import { PresentationData, SlideElement, SlideModel, createId, createSlide } from './models/slide';
 
 export type SlideStatus = 'active' | 'archived' | 'deleted';
 export interface SlideDoc {
   id: string;
   title?: string;
-  data?: any;
+  data?: PresentationData;
   status: SlideStatus;
   createdAt: string;
   updatedAt: string;
@@ -233,7 +234,7 @@ export class SlidesService {
     return {
       id,
       title: typeof (payload as any).title === 'string' ? (payload as any).title : undefined,
-      data: (payload as any).data ?? undefined,
+      data: this.normalizeData((payload as any).data),
       status,
       createdAt: this.coerceDate((payload as any).createdAt ?? (payload as any).created_at),
       updatedAt: this.coerceDate((payload as any).updatedAt ?? (payload as any).updated_at),
@@ -279,6 +280,69 @@ export class SlidesService {
     }
     return 'active';
   }
+  private normalizeData(payload: any): PresentationData {
+    if (payload && typeof payload === 'object' && Array.isArray(payload.slides)) {
+      const slides = payload.slides.map((s: any, index: number) => this.normalizeSlide(s, index)).filter((s): s is SlideModel => !!s);
+      if (slides.length) {
+        return { slides };
+      }
+    }
+    return defaultSlides();
+  }
+  private normalizeSlide(payload: any, index: number): SlideModel | null {
+    if (!payload || typeof payload !== 'object') {
+      return null;
+    }
+    if (Array.isArray(payload.elements)) {
+      const elements = payload.elements.map((el: any) => this.normalizeElement(el)).filter((e): e is SlideElement => !!e);
+      return {
+        id: typeof payload.id === 'string' ? payload.id : createId('slide'),
+        name: typeof payload.name === 'string' && payload.name.trim() ? payload.name : `Slide ${index + 1}`,
+        layout: typeof payload.layout === 'string' ? payload.layout : 'blank',
+        background: typeof payload.background === 'string' ? payload.background : '#ffffff',
+        elements,
+      };
+    }
+    if (typeof payload.text === 'string') {
+      const slide = createSlide('blank');
+      slide.name = `Slide ${index + 1}`;
+      slide.elements = [{
+        id: createId('el'),
+        type: 'text',
+        x: 80,
+        y: 120,
+        width: 760,
+        height: 300,
+        rotation: 0,
+        data: { text: payload.text, fontSize: 28, fill: '#0f172a', align: 'left' }
+      }];
+      return slide;
+    }
+    return createSlide('blank');
+  }
+  private normalizeElement(payload: any): SlideElement | null {
+    if (!payload || typeof payload !== 'object') {
+      return null;
+    }
+    const type = payload.type === 'text' ? 'text' : 'shape';
+    return {
+      id: typeof payload.id === 'string' ? payload.id : createId('el'),
+      type,
+      x: typeof payload.x === 'number' ? payload.x : 0,
+      y: typeof payload.y === 'number' ? payload.y : 0,
+      width: typeof payload.width === 'number' ? payload.width : 200,
+      height: typeof payload.height === 'number' ? payload.height : 80,
+      rotation: typeof payload.rotation === 'number' ? payload.rotation : 0,
+      data: {
+        text: payload.data?.text,
+        fontSize: payload.data?.fontSize ?? (type === 'text' ? 24 : undefined),
+        fill: payload.data?.fill ?? (type === 'shape' ? '#cbd5f5' : '#0f172a'),
+        stroke: payload.data?.stroke ?? '#1d4ed8',
+        radius: payload.data?.radius ?? 12,
+        align: payload.data?.align ?? 'left'
+      }
+    };
+  }
   private coerceDate(value: any): string {
     if (typeof value === 'string' && value.trim()) {
       return value;
@@ -302,7 +366,7 @@ export class SlidesService {
   }
 }
 
-export function defaultSlides(){ return { slides: [ { id: '1', text: '' } ] }; }
+export function defaultSlides(): PresentationData { return { slides: [createSlide('title-content')] }; }
 
 function normalizeBase(base: string): string {
   if (!base) return '';

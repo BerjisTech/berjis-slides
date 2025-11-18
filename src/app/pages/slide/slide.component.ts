@@ -1,8 +1,14 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { SlidesService, SlideDoc, SlideCollaborator, defaultSlides } from '../../slides.service';
+import { SlidesService, SlideCollaborator, SlideDoc, defaultSlides } from '../../slides.service';
+import { CANVAS_HEIGHT, CANVAS_WIDTH, GRID_SIZE, SlideElement, SlideLayout, SlideModel, cloneSlide, createSlide } from '../../models/slide';
+
+interface AlignmentGuides {
+  vertical: number | null;
+  horizontal: number | null;
+}
 
 @Component({
   standalone: true,
@@ -10,235 +16,241 @@ import { SlidesService, SlideDoc, SlideCollaborator, defaultSlides } from '../..
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './slide.component.html'
 })
-export class SlidePageComponent implements OnInit {
+export class SlidePageComponent implements OnInit, OnDestroy {
   deck: SlideDoc | null = null;
-  slides: { id: string; text: string }[] = defaultSlides().slides;
-  pendingSave?: any;
+  slides: SlideModel[] = defaultSlides().slides;
+  selectedSlideIndex = 0;
+  selectedElementId: string | null = null;
+
+  readonly zoomLevels = [0.25, 0.5, 1, 1.5, 2];
   zoom = 1;
-  openModal = false;
-  openId = '';
-  openQuery = '';
-  openRows: SlideDoc[] = [];
-  openFiltered: SlideDoc[] = [];
-  // Share modal
+  pan = { x: 0, y: 0 };
+  private panOrigin = { x: 0, y: 0 };
+  private panPointerStart = { x: 0, y: 0 };
+
+  readonly canvasWidth = CANVAS_WIDTH;
+  readonly canvasHeight = CANVAS_HEIGHT;
+  readonly gridSize = GRID_SIZE;
+
+  dragThumbIndex = -1;
+  dragOverIndex = -1;
+  draggingElementId: string | null = null;
+  private dragOffset = { x: 0, y: 0 };
+  alignmentGuides: AlignmentGuides = { vertical: null, horizontal: null };
+
+  spacePressed = false;
+  isPanning = false;
+
   shareOpen = false;
   shareRows: SlideCollaborator[] = [];
   shareUserId = '';
-  shareRole: 'viewer'|'commenter'|'editor' = 'viewer';
+  shareRole: 'viewer' | 'commenter' | 'editor' = 'viewer';
   shareLoading = false;
   shareError: string | null = null;
-  contextMenus: { name: string, menus: { icon: string, name: string, action: string }[] }[] = [
-    { name: 'File', menus: [
-      { icon: '', name: 'New', action: 'new' },
-      { icon: '', name: 'Open', action: 'open' },
-      { icon: '', name: 'Rename', action: 'rename' },
-      { icon: '', name: 'Import slides', action: 'import' },
-      { icon: '', name: 'Make a copy', action: 'copy' },
-      { icon: '', name: 'Download (.json)', action: 'download' }
-    ]},
-    { name: 'Edit', menus: [
-      { icon: '', name: 'Undo', action: 'undo' },
-      { icon: '', name: 'Redo', action: 'redo' }
-    ]},
-    { name: 'View', menus: [
-      { icon: '', name: 'Present', action: 'present' },
-      { icon: '', name: 'Grid view', action: 'grid' },
-      { icon: '', name: 'Zoom', action: 'zoom' }
-    ]},
-    { name: 'Insert', menus: [
-      { icon: '', name: 'New slide', action: 'newSlide' },
-      { icon: '', name: 'Text box', action: 'textBox' },
-      { icon: '', name: 'Image', action: 'image' },
-      { icon: '', name: 'Shape', action: 'shape' }
-    ]},
-    { name: 'Slide', menus: [
-      { icon: '', name: 'New slide', action: 'newSlide' },
-      { icon: '', name: 'Duplicate slide', action: 'dupSlide' },
-      { icon: '', name: 'Skip slide', action: 'skipSlide' },
-      { icon: '', name: 'Change layout', action: 'layout' }
-    ]},
-    { name: 'Format', menus: [
-      { icon: '', name: 'Text', action: 'formatText' },
-      { icon: '', name: 'Align', action: 'align' }
-    ]},
-    { name: 'Arrange', menus: [
-      { icon: '', name: 'Order', action: 'order' },
-      { icon: '', name: 'Align horizontally', action: 'alignH' }
-    ]},
-    { name: 'Tools', menus: [
-      { icon: '', name: 'Spelling', action: 'spelling' }
-    ]},
-    { name: 'Help', menus: [
-      { icon: '', name: 'Slides help', action: 'help' }
-    ]}
+
+  openModal = false;
+  openQuery = '';
+  openRows: SlideDoc[] = [];
+  openFiltered: SlideDoc[] = [];
+
+  renameModal = false;
+  renameTitle = '';
+
+  pendingSave?: ReturnType<typeof setTimeout>;
+
+  contextMenus: { name: string; menus: { name: string; action: string }[] }[] = [
+    {
+      name: 'File',
+      menus: [
+        { name: 'New', action: 'new' },
+        { name: 'Open', action: 'open' },
+        { name: 'Rename', action: 'rename' },
+        { name: 'Download (.json)', action: 'download' }
+      ]
+    },
+    {
+      name: 'Insert',
+      menus: [
+        { name: 'Blank slide', action: 'newSlide:blank' },
+        { name: 'Title slide', action: 'newSlide:title' },
+        { name: 'Title & content', action: 'newSlide:title-content' }
+      ]
+    },
+    {
+      name: 'Slide',
+      menus: [
+        { name: 'Duplicate', action: 'dupSlide' },
+        { name: 'Delete', action: 'deleteSlide' }
+      ]
+    },
+    {
+      name: 'View',
+      menus: [
+        { name: 'Present', action: 'present' },
+        { name: 'Zoom…', action: 'zoomPrompt' }
+      ]
+    }
   ];
 
-  onMenu(action: string){
-    switch(action){
-      case 'new': this.router.navigate(['/slide','new']); break;
-      case 'open': { this.showOpen(); break; }
-      case 'copy': this.copyDeck(); break;
-      case 'rename': this.showRename(); break;
-      case 'download': this.downloadDeck(); break;
-      case 'import': this.importDeck(); break;
-      case 'undo': document.execCommand('undo'); break;
-      case 'redo': document.execCommand('redo'); break;
-      case 'newSlide': this.addSlide(); break;
-      case 'dupSlide': this.slides.push({ ...this.slides[0], id: String(this.slides.length+1) }); this.queueSave(); break;
-      case 'present': this.present(); break;
-      case 'grid': this.showGridOverview(); break;
-      case 'zoom': this.promptZoom(); break;
-      case 'textBox': this.focusEditor(); break;
-      case 'image': this.insertImagePlaceholder(); break;
-      case 'shape': this.insertShapeMarker(); break;
-      case 'formatText': this.formatSelectionUppercase(); break;
-      case 'align': this.insertAlignMarker('center'); break;
-      case 'order': this.moveFirstToLast(); break;
-      case 'alignH': this.insertAlignMarker('left'); break;
-      case 'spelling': this.toggleTextareaSpellcheck(); break;
-      case 'help': this.openHelp('slides'); break;
-      case 'share': this.openShare(); break;
-      default: break;
-    }
-  }
+  @ViewChild('canvasSurface', { static: false }) canvasSurface?: ElementRef<HTMLDivElement>;
 
-  private async copyDeck(){
-    if (!this.deck) return;
-    const created = await this.svc.create({ title: (this.deck.title||'Untitled')+ ' (Copy)', data: { slides: this.slides } });
-    this.deck = created; this.router.navigate(['/slide', created.id]);
-  }
-
-  // Share
-  openShare(){
-    this.shareOpen = true;
-    this.shareError = null;
-    if (!this.canShare) {
-      this.shareRows = [];
-      this.shareError = 'Save your presentation to invite collaborators.';
-      return;
-    }
-    void this.loadCollaborators();
-  }
-  private get deckId(): string | null { return this.deck?.id ?? null; }
-  get canShare(): boolean { return !!this.deck && this.deck.id !== 'new'; }
-  async loadCollaborators(){
-    if (!this.canShare) {
-      this.shareRows = [];
-      return;
-    }
-    this.shareLoading = true;
-    this.shareError = null;
-    try {
-      this.shareRows = await this.svc.listCollaborators(this.deckId!);
-    } catch (err) {
-      this.shareError = err instanceof Error ? err.message : 'Unable to load collaborators.';
-    } finally {
-      this.shareLoading = false;
-    }
-  }
-  async addCollaborator(){
-    if (!this.canShare) {
-      this.shareError = 'Save your presentation to invite collaborators.';
-      return;
-    }
-    const userId = this.shareUserId.trim();
-    if (!userId) {
-      this.shareError = 'Enter a collaborator user ID.';
-      return;
-    }
-    this.shareLoading = true;
-    this.shareError = null;
-    try {
-      await this.svc.addCollaborator(this.deckId!, userId, this.shareRole);
-      this.shareUserId = '';
-      await this.loadCollaborators();
-    } catch (err) {
-      this.shareError = err instanceof Error ? err.message : 'Unable to add collaborator.';
-    } finally {
-      this.shareLoading = false;
-    }
-  }
-  async removeCollaborator(uid:string){
-    if (!this.canShare) {
-      return;
-    }
-    this.shareLoading = true;
-    this.shareError = null;
-    try {
-      await this.svc.removeCollaborator(this.deckId!, uid);
-      await this.loadCollaborators();
-    } catch (err) {
-      this.shareError = err instanceof Error ? err.message : 'Unable to remove collaborator.';
-    } finally {
-      this.shareLoading = false;
-    }
-  }
-  private downloadDeck(){
-    const name = ((this.deck?.title)||'presentation').replace(/\s+/g,'-').slice(0,80);
-    const blob = new Blob([JSON.stringify({ title: this.deck?.title||'', slides: this.slides }, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${name}.json`; a.click(); URL.revokeObjectURL(a.href);
-  }
-
-  private present(){
-    const w = window.open('', '_blank'); if (!w) return;
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${this.deck?.title||'Presentation'}</title>
-      <style>body{margin:0;font-family:system-ui,sans-serif} .slide{display:flex;align-items:center;justify-content:center;height:100vh;padding:40px;}
-      .nav{position:fixed;bottom:10px;right:10px}</style></head><body>
-      ${this.slides.map(s=>`<div class="slide"><div>${(s.text||'').replace(/</g,'&lt;')}</div></div>`).join('')}
-      <div class="nav">Use browser to navigate</div></body></html>`;
-    w.document.write(html); w.document.close();
-  }
-  private promptZoom(){ const v = prompt('Zoom % (e.g. 100)', String(Math.round(this.zoom*100))); if (v!==null){ const f = parseFloat(v); if(!isNaN(f) && f>10 && f<=400) this.zoom = f/100; }}
-  private focusEditor(){ setTimeout(() => { const ta = document.querySelector('textarea'); (ta as HTMLTextAreaElement|undefined)?.focus(); }, 0); }
-  private insertImagePlaceholder(){ const ta = document.querySelector('textarea') as HTMLTextAreaElement | null; const url = prompt('Image URL'); if (ta && url){ const ins = `\n[Image] ${url}\n`; const start = ta.selectionStart||0; const end = ta.selectionEnd||0; const cur = ta.value; const out = cur.slice(0,start) + ins + cur.slice(end); ta.value = out; this.onSlideChange(0, out); }}
-  private insertShapeMarker(){ const ta = document.querySelector('textarea') as HTMLTextAreaElement | null; if (!ta) return; const ins = `\n[Shape: rectangle]\n`; const start = ta.selectionStart||0; const end = ta.selectionEnd||0; const cur = ta.value; const out = cur.slice(0,start) + ins + cur.slice(end); ta.value = out; this.onSlideChange(0, out); }
-  private formatSelectionUppercase(){ const ta = document.querySelector('textarea') as HTMLTextAreaElement | null; if (!ta) return; const start = ta.selectionStart||0; const end = ta.selectionEnd||0; const sel = ta.value.slice(start,end); const rep = sel.toUpperCase(); const out = ta.value.slice(0,start)+rep+ta.value.slice(end); ta.value = out; this.onSlideChange(0, out); }
-  private insertAlignMarker(kind: 'left'|'center'){ const ta = document.querySelector('textarea') as HTMLTextAreaElement | null; if (!ta) return; const ins = kind==='center'? '\n[Align: center]\n' : '\n[Align: left]\n'; const start = ta.selectionStart||0; const end = ta.selectionEnd||0; const cur = ta.value; const out = cur.slice(0,start)+ins+cur.slice(end); ta.value=out; this.onSlideChange(0,out); }
-  private moveFirstToLast(){ if (this.slides.length>1){ const [first]=this.slides.splice(0,1); this.slides.push(first); this.queueSave(); } }
-  private showGridOverview(){ window.scrollTo({ top: 0, behavior: 'smooth' }); }
-  private toggleTextareaSpellcheck(){ const ta = document.querySelector('textarea') as HTMLTextAreaElement | null; if (ta) ta.spellcheck = !ta.spellcheck; }
-  private importDeck(){ const el = document.createElement('input'); el.type='file'; el.accept='.json,application/json'; el.onchange = async () => { const f = el.files && el.files[0]; if (!f) return; const txt = await f.text().catch(()=>null); try{ const parsed = JSON.parse(txt||'{}'); if (Array.isArray(parsed.slides)){ this.slides = parsed.slides.map((s:any,i:number)=>({ id: String(i+1), text: String(s.text||'') })); this.queueSave(); alert('Imported slides.'); } else { alert('Invalid file format.'); } } catch { alert('Invalid JSON.'); } }; el.click(); }
-  private openHelp(app: 'docs'|'sheets'|'slides'|'pdf'){ const sp = localStorage.getItem(`berjis_help_url_${app}`); const g = localStorage.getItem('berjis_help_url'); const u = sp||g||`/help/${app}`; window.open(u, '_blank'); }
-
-  confirmOpen(){ const id=(this.openId||'').trim(); if (id){ this.openModal=false; this.router.navigate(['/slide', id]); } }
-  cancelOpen(){ this.openModal=false; }
-  private async showOpen(){
-    this.openModal = true;
-    try { this.openRows = await this.svc.list(['active']); } catch { this.openRows = []; }
-    this.openFiltered = [...this.openRows]; this.openQuery='';
-  }
-  onOpenQueryChange(){
-    const q = (this.openQuery||'').toLowerCase(); if (!q){ this.openFiltered=[...this.openRows]; return; }
-    this.openFiltered = this.openRows.filter(s =>
-      (s.title||'').toLowerCase().includes(q) || JSON.stringify((s.data as any)?.slides||[]).toLowerCase().includes(q)
-    );
-  }
-  openDeck(s: SlideDoc){ this.openModal=false; this.router.navigate(['/slide', s.id]); }
-
-  // Rename modal
-  renameModal = false; renameTitle = '';
-  private showRename(){ this.renameTitle = (this.deck?.title||''); this.renameModal = true; }
-  confirmRename(){ if(!this.deck){ this.renameModal=false; return; } this.deck.title = (this.renameTitle||'').trim(); this.renameModal=false; this.onTitleChange(); }
-  cancelRename(){ this.renameModal=false; }
-
-  constructor(private route: ActivatedRoute, private router: Router, public svc: SlidesService) { }
+  constructor(private route: ActivatedRoute, private router: Router, public svc: SlidesService) {}
 
   async ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id') || 'new';
-    this.deck = { id, title: '', data: defaultSlides(), status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    this.deck = {
+      id,
+      title: 'Untitled presentation',
+      data: defaultSlides(),
+      status: 'active',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
     if (id !== 'new') {
       const existing = this.svc.get(id) || await this.svc.fetch(id);
-      if (existing) this.deck = existing; else { this.router.navigate(['/']); return; }
+      if (!existing) {
+        await this.router.navigate(['/']);
+        return;
+      }
+      this.deck = existing;
     }
-    this.slides = (this.deck?.data?.slides as any[]) || defaultSlides().slides;
+    this.slides = this.cloneSlides(this.deck?.data?.slides ?? defaultSlides().slides);
   }
 
-  onTitleChange() { this.queueSave(); }
-  onSlideChange(i: number, val: string) { this.slides[i].text = val; this.queueSave(); }
-  addSlide() { this.slides.push({ id: String(this.slides.length + 1), text: '' }); this.queueSave(); }
-  removeSlide(i: number) { this.slides.splice(i, 1); this.queueSave(); }
+  ngOnDestroy(): void {
+    if (this.pendingSave) {
+      clearTimeout(this.pendingSave);
+    }
+  }
 
-  private queueSave() { if (!this.deck) return; if (this.pendingSave) clearTimeout(this.pendingSave); this.pendingSave = setTimeout(() => this.save(), 400); }
-  private async ensureCreatedId() { if (this.deck && this.deck.id === 'new') { const hasTitle = !!this.deck.title && this.deck.title.trim().length > 0; const hasData = JSON.stringify(this.slides).length > 2; if (hasTitle || hasData) { const created = await this.svc.create({ title: this.deck.title, data: { slides: this.slides } }); this.deck = created; this.router.navigate(['/slide', created.id], { replaceUrl: true }); } } }
-  private async save() { if (!this.deck) return; await this.ensureCreatedId(); if (!this.deck) return; this.deck.data = { slides: this.slides }; await this.svc.save(this.deck); }
-}
+  get activeSlide(): SlideModel | null { return this.slides[this.selectedSlideIndex] ?? null; }
+  get slideCounterLabel(): string { return `${this.selectedSlideIndex + 1} / ${Math.max(this.slides.length, 1)}`; }
+  get canShare(): boolean { return !!this.deck && this.deck.id !== 'new'; }
+
+  onMenu(action: string) {
+    if (action.startsWith('newSlide:')) {
+      const layout = action.split(':')[1] as SlideLayout;
+      this.addSlide(layout);
+      return;
+    }
+    switch (action) {
+      case 'new':
+        this.router.navigate(['/slide', 'new']);
+        break;
+      case 'open':
+        this.showOpen();
+        break;
+      case 'rename':
+        this.showRename();
+        break;
+      case 'download':
+        this.downloadDeck();
+        break;
+      case 'dupSlide':
+        this.duplicateSlide();
+        break;
+      case 'deleteSlide':
+        this.deleteSlide();
+        break;
+      case 'present':
+        this.present();
+        break;
+      case 'zoomPrompt':
+        this.promptZoom();
+        break;
+      default:
+        break;
+    }
+  }
+
+  selectSlide(index: number) {
+    this.selectedSlideIndex = index;
+    this.selectedElementId = null;
+  }
+
+  addSlide(layout: SlideLayout) {
+    const slide = createSlide(layout);
+    const insertIndex = this.selectedSlideIndex + 1;
+    this.slides.splice(insertIndex, 0, slide);
+    this.selectSlide(insertIndex);
+    this.queueSave();
+  }
+
+  duplicateSlide() {
+    const current = this.activeSlide;
+    if (!current) return;
+    const duplicated = cloneSlide(current);
+    this.slides.splice(this.selectedSlideIndex + 1, 0, duplicated);
+    this.selectSlide(this.selectedSlideIndex + 1);
+    this.queueSave();
+  }
+
+  deleteSlide() {
+    if (!this.activeSlide) return;
+    if (!confirm('Delete this slide?')) return;
+    this.slides.splice(this.selectedSlideIndex, 1);
+    if (!this.slides.length) {
+      this.slides.push(createSlide('blank'));
+    }
+    this.selectedSlideIndex = Math.max(0, this.selectedSlideIndex - 1);
+    this.queueSave();
+  }
+
+  onThumbDragStart(index: number) { this.dragThumbIndex = index; }
+  onThumbDragOver(event: DragEvent, index: number) { event.preventDefault(); this.dragOverIndex = index; }
+  onThumbDrop(event: DragEvent, index: number) {
+    event.preventDefault();
+    if (this.dragThumbIndex === -1 || this.dragThumbIndex === index) { this.resetThumbDrag(); return; }
+    const [slide] = this.slides.splice(this.dragThumbIndex, 1);
+    this.slides.splice(index, 0, slide);
+    this.selectedSlideIndex = index;
+    this.resetThumbDrag();
+    this.queueSave();
+  }
+  onThumbDragEnd() { this.resetThumbDrag(); }
+  private resetThumbDrag() { this.dragThumbIndex = -1; this.dragOverIndex = -1; }
+
+  changeZoom(level: number) { this.zoom = level; }
+
+  @HostListener('window:keydown', ['$event'])
+  handleKeyDown(event: KeyboardEvent) {
+    if (this.isInputTarget(event.target)) return;
+    if (event.code === 'Space') this.spacePressed = true;
+    if (event.key === 'ArrowLeft') { this.prevSlide(); event.preventDefault(); }
+    if (event.key === 'ArrowRight') { this.nextSlide(); event.preventDefault(); }
+  }
+
+  @HostListener('window:keyup', ['$event'])
+  handleKeyUp(event: KeyboardEvent) {
+    if (event.code === 'Space') this.spacePressed = false;
+  }
+
+  prevSlide() { if (this.selectedSlideIndex > 0) this.selectSlide(this.selectedSlideIndex - 1); }
+  nextSlide() { if (this.selectedSlideIndex < this.slides.length - 1) this.selectSlide(this.selectedSlideIndex + 1); }
+
+  onCanvasPointerDown(event: PointerEvent) {
+    if (this.spacePressed || event.button === 1) { this.startPan(event); return; }
+    this.selectedElementId = null;
+  }
+
+  onElementPointerDown(event: PointerEvent, element: SlideElement) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.selectedElementId = element.id;
+    this.draggingElementId = element.id;
+    const { x, y } = this.clientToCanvas(event);
+    this.dragOffset = { x: x - element.x, y: y - element.y };
+    this.updateAlignmentGuides(element);
+  }
+
+  @HostListener('window:pointermove', ['$event'])
+  handlePointerMove(event: PointerEvent) {
+    if (this.isPanning) {
+      const deltaX = event.clientX - this.panPointerStart.x;
+      const deltaY = event.clientY - this.panPointerStart.y;
+      this.pan = { x: this.panOrigin.x + deltaX, y: this.panOrigin.y + deltaY };
+      event.preventDefault();
+      return;
+    }
+    if (!this.draggingElementId) return;
+    const slide = this.a
