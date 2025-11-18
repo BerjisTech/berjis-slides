@@ -21,6 +21,7 @@ export interface SlideElement {
     italic?: boolean;
     underline?: boolean;
     strikethrough?: boolean;
+    lineHeight?: number;
   };
 }
 
@@ -127,6 +128,7 @@ export interface TextElementOptions {
   italic?: boolean;
   underline?: boolean;
   strikethrough?: boolean;
+  lineHeight?: number;
 }
 
 export function createTextElement(text: string, opts: TextElementOptions): SlideElement {
@@ -147,7 +149,8 @@ export function createTextElement(text: string, opts: TextElementOptions): Slide
       bold: opts.bold ?? false,
       italic: opts.italic ?? false,
       underline: opts.underline ?? false,
-      strikethrough: opts.strikethrough ?? false
+      strikethrough: opts.strikethrough ?? false,
+      lineHeight: opts.lineHeight ?? 1.2
     },
   };
 }

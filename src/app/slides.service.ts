@@ -346,7 +346,8 @@ export class SlidesService {
         bold: Boolean(payload.data?.bold),
         italic: Boolean(payload.data?.italic),
         underline: Boolean(payload.data?.underline),
-        strikethrough: Boolean(payload.data?.strikethrough)
+        strikethrough: Boolean(payload.data?.strikethrough),
+        lineHeight: typeof payload.data?.lineHeight === 'number' ? payload.data.lineHeight : 1.2
       }
     };
   }

@@ -88,6 +88,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     '#facc15'
   ];
   recentTextColors: string[] = [];
+  readonly lineHeightRange = { min: 0.8, max: 2.5, step: 0.1 };
 
   contextMenus: { name: string; menus: { name: string; action: string }[] }[] = [
     {
@@ -421,6 +422,20 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.queueSave();
   }
 
+  changeLineHeight(value: number | string) {
+    const element = this.selectedTextElement;
+    if (!element) {
+      return;
+    }
+    const numeric = typeof value === 'string' ? Number(value) : value;
+    if (!Number.isFinite(numeric)) {
+      return;
+    }
+    const clamped = Number(Math.min(this.lineHeightRange.max, Math.max(this.lineHeightRange.min, numeric)).toFixed(2));
+    element.data.lineHeight = clamped;
+    this.queueSave();
+  }
+
   changeAlignment(alignment: 'left' | 'center' | 'right' | 'justify') {
     const element = this.selectedTextElement;
     if (!element) {
@@ -440,6 +455,10 @@ export class SlidePageComponent implements OnInit, OnDestroy {
 
   get selectedAlignment(): 'left' | 'center' | 'right' | 'justify' {
     return this.selectedTextElement?.data.align ?? 'left';
+  }
+
+  get selectedLineHeight(): number {
+    return this.selectedTextElement?.data.lineHeight ?? 1.2;
   }
 
   textDecorationFor(element: SlideElement): string | null {
@@ -722,5 +741,18 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       return element.x + element.width - 12;
     }
     return element.x + 12;
+  }
+
+  textLines(element: SlideElement): string[] {
+    if (element.type !== 'text') return [];
+    const text = element.data.text ?? '';
+    const lines = text.split(/\r?\n/);
+    return lines.length ? lines : [''];
+  }
+
+  lineHeightPx(element: SlideElement): number {
+    const fontSize = element.data.fontSize || 24;
+    const lineHeight = element.data.lineHeight ?? 1.2;
+    return fontSize * lineHeight;
   }
 }
