@@ -748,7 +748,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   textXFor(element: SlideElement): number {
     if (element.type !== 'text') return element.x + 12;
     const align = element.data.align ?? 'left';
-    const indent = element.data.bulletStyle && element.data.bulletStyle !== 'none' ? 32 : 12;
+    const indent = 12;
     if (align === 'center') {
       return element.x + element.width / 2;
     }
@@ -758,11 +758,37 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     return element.x + indent;
   }
 
-  textLines(element: SlideElement): string[] {
+  renderLines(element: SlideElement): string[] {
     if (element.type !== 'text') return [];
     const text = element.data.text ?? '';
-    const lines = text.split(/\r?\n/);
-    return lines.length ? lines : [''];
+    const rawLines = text.split(/\r?\n/);
+    const fontSize = element.data.fontSize || 24;
+    const padding = 24;
+    const maxChars = Math.max(1, Math.floor((element.width - padding) / (fontSize * 0.6)));
+    const wrapped: string[] = [];
+    for (const raw of rawLines.length ? rawLines : ['']) {
+      let line = raw;
+      if (!line) {
+        wrapped.push('');
+        continue;
+      }
+      const words = line.split(/\s+/);
+      let current = '';
+      for (const word of words) {
+        if (!current) {
+          current = word;
+          continue;
+        }
+        if ((current + ' ' + word).length <= maxChars) {
+          current += ` ${word}`;
+        } else {
+          wrapped.push(current);
+          current = word;
+        }
+      }
+      wrapped.push(current);
+    }
+    return wrapped;
   }
 
   lineHeightPx(element: SlideElement): number {

@@ -248,7 +248,7 @@
                     [attr.font-style]="element.data.italic ? 'italic' : 'normal'"
                     [attr.text-decoration]="textDecorationFor(element)"
                     [attr.text-anchor]="textAnchorFor(element)">
-                    <ng-container *ngFor="let line of textLines(element); let i = index">
+                    <ng-container *ngFor="let line of renderLines(element); let i = index">
                       <tspan [attr.x]="textXFor(element)" [attr.dy]="i === 0 ? 0 : lineHeightPx(element)">
                         {{ bulletPrefix(element, i) }}{{ (line || ' ') }}
                       </tspan>

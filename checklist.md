@@ -41,7 +41,7 @@ Build a full-featured online presentation editor (like PowerPoint/Google Slides)
 - [x] Text alignment (left, center, right, justify)
 - [x] Line height control
 - [x] Bullet points and numbered lists
-- [ ] Text wrapping within text box boundaries
+- [x] Text wrapping within text box boundaries
 
 ### **Shape Elements**
 - [ ] Rectangle/Square tool
