@@ -17,6 +17,7 @@ interface AlignmentGuides {
   templateUrl: './slide.component.html'
 })
 export class SlidePageComponent implements OnInit, OnDestroy {
+  private static readonly TEXT_COLOR_STORAGE_KEY = 'slides.textColors';
   deck: SlideDoc | null = null;
   slides: SlideModel[] = defaultSlides().slides;
   selectedSlideIndex = 0;
@@ -74,6 +75,19 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     'Space Grotesk'
   ];
   readonly fontSizeRange = { min: 8, max: 96 };
+  readonly defaultTextColors = [
+    '#0f172a',
+    '#1d4ed8',
+    '#dc2626',
+    '#059669',
+    '#b45309',
+    '#9333ea',
+    '#475569',
+    '#64748b',
+    '#f97316',
+    '#facc15'
+  ];
+  recentTextColors: string[] = [];
 
   contextMenus: { name: string; menus: { name: string; action: string }[] }[] = [
     {
@@ -115,6 +129,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
 
   async ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id') || 'new';
+    this.recentTextColors = this.loadRecentColors();
     this.deck = {
       id,
       title: 'Untitled presentation',
@@ -145,9 +160,10 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   get canShare(): boolean { return !!this.deck && this.deck.id !== 'new'; }
   get selectedTextElement(): SlideElement | null {
     const slide = this.activeSlide;
-    if (!slide) return null;
-    const element = slide.elements.find(el => el.id === this.selectedElementId && el.type === 'text');
-    return element ?? null;
+    if (!slide) {
+      return null;
+    }
+    return slide.elements.find(el => el.id === this.selectedElementId && el.type === 'text') ?? null;
   }
 
   onMenu(action: string) {
@@ -395,6 +411,16 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.queueSave();
   }
 
+  changeTextColor(color: string) {
+    const element = this.selectedTextElement;
+    if (!element || !color) {
+      return;
+    }
+    element.data.fill = color;
+    this.pushRecentColor(color);
+    this.queueSave();
+  }
+
   get selectedFontFamily(): string {
     return this.selectedTextElement?.data.fontFamily || this.fontFamilies[0];
   }
@@ -637,6 +663,32 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       backgroundSize: `100% ${spacing}px`,
       backgroundPosition: `0 ${offset}px`
     };
+  }
+
+  private loadRecentColors(): string[] {
+    try {
+      const raw = localStorage.getItem(SlidePageComponent.TEXT_COLOR_STORAGE_KEY);
+      if (!raw) {
+        return [];
+      }
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((value: unknown): value is string => typeof value === 'string');
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  }
+
+  private pushRecentColor(color: string) {
+    const normalized = color.toLowerCase();
+    this.recentTextColors = [normalized, ...this.recentTextColors.filter(entry => entry !== normalized)].slice(0, 6);
+    try {
+      localStorage.setItem(SlidePageComponent.TEXT_COLOR_STORAGE_KEY, JSON.stringify(this.recentTextColors));
+    } catch {
+      // ignore storage failures (private browsing / quota)
+    }
   }
 
 }

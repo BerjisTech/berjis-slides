@@ -108,6 +108,32 @@
           [ngModel]="selectedFontSize"
           (ngModelChange)="changeFontSize($event)">
       </div>
+      <div class="flex flex-col gap-1 text-xs text-slate-500 dark:text-slate-300">
+        <span>Color</span>
+        <div class="flex flex-wrap gap-1">
+          <button type="button"
+            *ngFor="let color of defaultTextColors"
+            class="w-7 h-7 rounded-full border border-white/70 shadow ring-offset-1"
+            [style.background]="color"
+            [class.ring-2]="(textEl.data.fill || '#0f172a').toLowerCase() === color.toLowerCase()"
+            (click)="changeTextColor(color)">
+          </button>
+          <input type="color"
+            class="w-8 h-7 rounded-full border border-blue-900/20 dark:border-slate-600 cursor-pointer bg-transparent p-0"
+            [ngModel]="textEl.data.fill || '#0f172a'"
+            (ngModelChange)="changeTextColor($event)" />
+        </div>
+        <div *ngIf="recentTextColors.length" class="flex items-center flex-wrap gap-1">
+          <span class="mr-1">Recent:</span>
+          <button type="button"
+            *ngFor="let color of recentTextColors"
+            class="w-6 h-6 rounded-full border border-white/70 shadow ring-offset-1"
+            [style.background]="color"
+            [class.ring-2]="(textEl.data.fill || '#0f172a').toLowerCase() === color.toLowerCase()"
+            (click)="changeTextColor(color)">
+          </button>
+        </div>
+      </div>
     </div>
     <textarea class="w-full min-h-[80px] rounded-2xl border border-blue-900/10 dark:border-slate-800 bg-white/90 dark:bg-slate-900/70 px-4 py-3 text-sm"
       placeholder="Start typing..."
