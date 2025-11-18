@@ -22,6 +22,7 @@ export interface SlideElement {
     underline?: boolean;
     strikethrough?: boolean;
     lineHeight?: number;
+    bulletStyle?: 'none' | 'bullet' | 'number';
   };
 }
 
@@ -129,6 +130,7 @@ export interface TextElementOptions {
   underline?: boolean;
   strikethrough?: boolean;
   lineHeight?: number;
+  bulletStyle?: 'none' | 'bullet' | 'number';
 }
 
 export function createTextElement(text: string, opts: TextElementOptions): SlideElement {
@@ -150,7 +152,8 @@ export function createTextElement(text: string, opts: TextElementOptions): Slide
       italic: opts.italic ?? false,
       underline: opts.underline ?? false,
       strikethrough: opts.strikethrough ?? false,
-      lineHeight: opts.lineHeight ?? 1.2
+      lineHeight: opts.lineHeight ?? 1.2,
+      bulletStyle: opts.bulletStyle ?? 'none'
     },
   };
 }

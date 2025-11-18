@@ -40,7 +40,7 @@ Build a full-featured online presentation editor (like PowerPoint/Google Slides)
 - [x] Text color picker with recent colors
 - [x] Text alignment (left, center, right, justify)
 - [x] Line height control
-- [ ] Bullet points and numbered lists
+- [x] Bullet points and numbered lists
 - [ ] Text wrapping within text box boundaries
 
 ### **Shape Elements**

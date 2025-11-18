@@ -89,6 +89,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   ];
   recentTextColors: string[] = [];
   readonly lineHeightRange = { min: 0.8, max: 2.5, step: 0.1 };
+  readonly bulletStyles: ('none' | 'bullet' | 'number')[] = ['none', 'bullet', 'number'];
 
   contextMenus: { name: string; menus: { name: string; action: string }[] }[] = [
     {
@@ -445,6 +446,15 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.queueSave();
   }
 
+  changeBulletStyle(style: 'none' | 'bullet' | 'number') {
+    const element = this.selectedTextElement;
+    if (!element) {
+      return;
+    }
+    element.data.bulletStyle = style;
+    this.queueSave();
+  }
+
   get selectedFontFamily(): string {
     return this.selectedTextElement?.data.fontFamily || this.fontFamilies[0];
   }
@@ -459,6 +469,10 @@ export class SlidePageComponent implements OnInit, OnDestroy {
 
   get selectedLineHeight(): number {
     return this.selectedTextElement?.data.lineHeight ?? 1.2;
+  }
+
+  get selectedBulletStyle(): 'none' | 'bullet' | 'number' {
+    return this.selectedTextElement?.data.bulletStyle ?? 'none';
   }
 
   textDecorationFor(element: SlideElement): string | null {
@@ -734,13 +748,14 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   textXFor(element: SlideElement): number {
     if (element.type !== 'text') return element.x + 12;
     const align = element.data.align ?? 'left';
+    const indent = element.data.bulletStyle && element.data.bulletStyle !== 'none' ? 32 : 12;
     if (align === 'center') {
       return element.x + element.width / 2;
     }
     if (align === 'right') {
-      return element.x + element.width - 12;
+      return element.x + element.width - indent;
     }
-    return element.x + 12;
+    return element.x + indent;
   }
 
   textLines(element: SlideElement): string[] {
@@ -754,5 +769,19 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     const fontSize = element.data.fontSize || 24;
     const lineHeight = element.data.lineHeight ?? 1.2;
     return fontSize * lineHeight;
+  }
+
+  bulletPrefix(element: SlideElement, index: number): string {
+    if (element.type !== 'text') {
+      return '';
+    }
+    const style = element.data.bulletStyle ?? 'none';
+    if (style === 'bullet') {
+      return '• ';
+    }
+    if (style === 'number') {
+      return `${index + 1}. `;
+    }
+    return '';
   }
 }
