@@ -350,7 +350,11 @@ export class SlidesService {
         lineHeight: typeof payload.data?.lineHeight === 'number' ? payload.data.lineHeight : 1.2,
         bulletStyle: ['bullet', 'number', 'none'].includes(payload.data?.bulletStyle)
           ? payload.data.bulletStyle
-          : 'none'
+          : 'none',
+        shapeKind: ['rect', 'ellipse', 'line', 'arrow'].includes(payload.data?.shapeKind)
+          ? payload.data.shapeKind
+          : undefined,
+        strokeWidth: typeof payload.data?.strokeWidth === 'number' ? payload.data.strokeWidth : undefined
       }
     };
   }

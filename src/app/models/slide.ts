@@ -23,7 +23,8 @@ export interface SlideElement {
     strikethrough?: boolean;
     lineHeight?: number;
     bulletStyle?: 'none' | 'bullet' | 'number';
-    shapeKind?: 'rect' | 'ellipse';
+    shapeKind?: 'rect' | 'ellipse' | 'line' | 'arrow';
+    strokeWidth?: number;
   };
 }
 
@@ -108,7 +109,8 @@ export interface ShapeElementOptions {
   fill?: string;
   stroke?: string;
   radius?: number;
-  shapeKind?: 'rect' | 'ellipse';
+  shapeKind?: 'rect' | 'ellipse' | 'line' | 'arrow';
+  strokeWidth?: number;
 }
 
 export function createShapeElement(opts: ShapeElementOptions): SlideElement {
@@ -125,6 +127,7 @@ export function createShapeElement(opts: ShapeElementOptions): SlideElement {
       stroke: opts.stroke ?? '#1d4ed8',
       radius: opts.radius ?? 12,
       shapeKind: opts.shapeKind ?? 'rect',
+      strokeWidth: opts.strokeWidth ?? 2
     },
   };
 }

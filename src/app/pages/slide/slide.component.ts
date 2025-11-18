@@ -90,11 +90,13 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   recentTextColors: string[] = [];
   readonly lineHeightRange = { min: 0.8, max: 2.5, step: 0.1 };
   readonly bulletStyles: ('none' | 'bullet' | 'number')[] = ['none', 'bullet', 'number'];
-  shapeVariant: 'rectangle' | 'square' | 'ellipse' = 'rectangle';
-  readonly shapePresets: Record<'rectangle' | 'square' | 'ellipse', { width: number; height: number; kind: 'rect' | 'ellipse'; radius?: number }> = {
-    rectangle: { width: 260, height: 160, kind: 'rect', radius: 16 },
-    square: { width: 180, height: 180, kind: 'rect', radius: 12 },
-    ellipse: { width: 240, height: 160, kind: 'ellipse' }
+  shapeVariant: 'rectangle' | 'square' | 'ellipse' | 'line' | 'arrow' = 'rectangle';
+  readonly shapePresets: Record<'rectangle' | 'square' | 'ellipse' | 'line' | 'arrow', { width: number; height: number; kind: 'rect' | 'ellipse' | 'line' | 'arrow'; radius?: number; strokeWidth?: number }> = {
+    rectangle: { width: 260, height: 160, kind: 'rect', radius: 16, strokeWidth: 2 },
+    square: { width: 180, height: 180, kind: 'rect', radius: 12, strokeWidth: 2 },
+    ellipse: { width: 240, height: 160, kind: 'ellipse', strokeWidth: 2 },
+    line: { width: 220, height: 0, kind: 'line', strokeWidth: 3 },
+    arrow: { width: 220, height: 0, kind: 'arrow', strokeWidth: 3 }
   };
 
   contextMenus: { name: string; menus: { name: string; action: string }[] }[] = [
@@ -214,7 +216,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.insertMode = this.insertMode === mode ? null : mode;
   }
 
-  toggleShapeInsert(kind: 'rectangle' | 'square' | 'ellipse') {
+  toggleShapeInsert(kind: 'rectangle' | 'square' | 'ellipse' | 'line' | 'arrow') {
     if (this.insertMode === 'shape' && this.shapeVariant === kind) {
       this.insertMode = null;
       return;
@@ -417,7 +419,8 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       width,
       height,
       radius: preset.kind === 'rect' ? preset.radius : undefined,
-      shapeKind: preset.kind
+      shapeKind: preset.kind,
+      strokeWidth: preset.strokeWidth
     });
     slide.elements.push(element);
     this.selectedElementId = element.id;
@@ -527,6 +530,10 @@ export class SlidePageComponent implements OnInit, OnDestroy {
         return 'Square';
       case 'ellipse':
         return 'Ellipse';
+      case 'line':
+        return 'Line';
+      case 'arrow':
+        return 'Arrow';
       default:
         return 'Rectangle';
     }
@@ -866,5 +873,36 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       return `${index + 1}. `;
     }
     return '';
+  }
+
+  lineEnd(element: SlideElement): { x: number; y: number } {
+    return {
+      x: element.x + element.width,
+      y: element.y + element.height
+    };
+  }
+
+  lineStrokeWidth(element: SlideElement): number {
+    return element.data.strokeWidth ?? 2;
+  }
+
+  arrowHeadPoints(element: SlideElement): string {
+    const start = { x: element.x, y: element.y };
+    const end = this.lineEnd(element);
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len;
+    const uy = dy / len;
+    const arrowLength = 14;
+    const arrowWidth = 6;
+    const baseX = end.x - ux * arrowLength;
+    const baseY = end.y - uy * arrowLength;
+    const offsetX = -uy * arrowWidth;
+    const offsetY = ux * arrowWidth;
+    const p1 = `${end.x},${end.y}`;
+    const p2 = `${baseX + offsetX},${baseY + offsetY}`;
+    const p3 = `${baseX - offsetX},${baseY - offsetY}`;
+    return `${p1} ${p2} ${p3}`;
   }
 }
