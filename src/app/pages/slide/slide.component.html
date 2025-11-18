@@ -233,6 +233,36 @@
       [style.line-height]="selectedLineHeight"
       (ngModelChange)="updateTextContent($event)"></textarea>
   </div>
+  <div *ngIf="selectedShapeElement as shape" class="space-y-3">
+    <div class="flex flex-wrap items-center gap-3 bg-white/90 dark:bg-slate-900/70 border border-blue-900/10 dark:border-slate-800 rounded-2xl px-4 py-3 shadow-sm">
+      <div class="flex flex-col gap-1 text-xs text-slate-500 dark:text-slate-300">
+        <span>Fill color</span>
+        <div class="flex flex-wrap gap-1">
+          <button type="button"
+            *ngFor="let color of defaultTextColors"
+            class="w-7 h-7 rounded-full border border-white/70 shadow ring-offset-1"
+            [style.background]="color"
+            [class.ring-2]="(shape.data.fill || '#cbd5f5').toLowerCase() === color.toLowerCase()"
+            (click)="changeShapeFill(color)">
+          </button>
+          <input type="color"
+            class="w-8 h-7 rounded-full border border-blue-900/20 dark:border-slate-600 cursor-pointer bg-transparent p-0"
+            [ngModel]="shape.data.fill || '#cbd5f5'"
+            (ngModelChange)="changeShapeFill($event)" />
+        </div>
+        <div *ngIf="recentShapeColors.length" class="flex items-center flex-wrap gap-1">
+          <span class="mr-1">Recent:</span>
+          <button type="button"
+            *ngFor="let color of recentShapeColors"
+            class="w-6 h-6 rounded-full border border-white/70 shadow ring-offset-1"
+            [style.background]="color"
+            [class.ring-2]="(shape.data.fill || '#cbd5f5').toLowerCase() === color.toLowerCase()"
+            (click)="changeShapeFill(color)">
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="flex gap-4 items-start">
     <aside class="w-56 bg-white/80 backdrop-blur dark:bg-slate-900/70 rounded-2xl border border-blue-900/10 dark:border-slate-800 shadow-sm p-3">

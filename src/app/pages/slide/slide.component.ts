@@ -18,6 +18,7 @@ interface AlignmentGuides {
 })
 export class SlidePageComponent implements OnInit, OnDestroy {
   private static readonly TEXT_COLOR_STORAGE_KEY = 'slides.textColors';
+  private static readonly SHAPE_COLOR_STORAGE_KEY = 'slides.shapeColors';
   deck: SlideDoc | null = null;
   slides: SlideModel[] = defaultSlides().slides;
   selectedSlideIndex = 0;
@@ -88,6 +89,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     '#facc15'
   ];
   recentTextColors: string[] = [];
+  recentShapeColors: string[] = [];
   readonly lineHeightRange = { min: 0.8, max: 2.5, step: 0.1 };
   readonly bulletStyles: ('none' | 'bullet' | 'number')[] = ['none', 'bullet', 'number'];
   shapeVariant: 'rectangle' | 'square' | 'ellipse' | 'line' | 'arrow' | 'triangle' = 'rectangle';
@@ -141,6 +143,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   async ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id') || 'new';
     this.recentTextColors = this.loadRecentColors();
+    this.recentShapeColors = this.loadShapeColors();
     this.deck = {
       id,
       title: 'Untitled presentation',
@@ -175,6 +178,14 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       return null;
     }
     return slide.elements.find(el => el.id === this.selectedElementId && el.type === 'text') ?? null;
+  }
+
+  get selectedShapeElement(): SlideElement | null {
+    const slide = this.activeSlide;
+    if (!slide) {
+      return null;
+    }
+    return slide.elements.find(el => el.id === this.selectedElementId && el.type === 'shape') ?? null;
   }
 
   onMenu(action: string) {
@@ -470,6 +481,16 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     }
     element.data.fill = color;
     this.pushRecentColor(color);
+    this.queueSave();
+  }
+
+  changeShapeFill(color: string) {
+    const element = this.selectedShapeElement;
+    if (!element || !color) {
+      return;
+    }
+    element.data.fill = color;
+    this.pushShapeColor(color);
     this.queueSave();
   }
 
@@ -801,6 +822,30 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       localStorage.setItem(SlidePageComponent.TEXT_COLOR_STORAGE_KEY, JSON.stringify(this.recentTextColors));
     } catch {
       // ignore storage failures (private browsing / quota)
+    }
+  }
+
+  private loadShapeColors(): string[] {
+    try {
+      const raw = localStorage.getItem(SlidePageComponent.SHAPE_COLOR_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((value: unknown): value is string => typeof value === 'string');
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  }
+
+  private pushShapeColor(color: string) {
+    const normalized = color.toLowerCase();
+    this.recentShapeColors = [normalized, ...this.recentShapeColors.filter(entry => entry !== normalized)].slice(0, 6);
+    try {
+      localStorage.setItem(SlidePageComponent.SHAPE_COLOR_STORAGE_KEY, JSON.stringify(this.recentShapeColors));
+    } catch {
+      // ignore storage failures
     }
   }
 
