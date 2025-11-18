@@ -19,6 +19,7 @@ interface AlignmentGuides {
 export class SlidePageComponent implements OnInit, OnDestroy {
   private static readonly TEXT_COLOR_STORAGE_KEY = 'slides.textColors';
   private static readonly SHAPE_COLOR_STORAGE_KEY = 'slides.shapeColors';
+  private static readonly SHAPE_STROKE_COLOR_STORAGE_KEY = 'slides.shapeStrokeColors';
   deck: SlideDoc | null = null;
   slides: SlideModel[] = defaultSlides().slides;
   selectedSlideIndex = 0;
@@ -90,9 +91,11 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   ];
   recentTextColors: string[] = [];
   recentShapeColors: string[] = [];
+  recentStrokeColors: string[] = [];
   readonly lineHeightRange = { min: 0.8, max: 2.5, step: 0.1 };
   readonly bulletStyles: ('none' | 'bullet' | 'number')[] = ['none', 'bullet', 'number'];
   shapeVariant: 'rectangle' | 'square' | 'ellipse' | 'line' | 'arrow' | 'triangle' = 'rectangle';
+  readonly shapeStrokeRange = { min: 1, max: 12, step: 1 };
   readonly shapePresets: Record<'rectangle' | 'square' | 'ellipse' | 'line' | 'arrow' | 'triangle', { width: number; height: number; kind: 'rect' | 'ellipse' | 'line' | 'arrow' | 'triangle'; radius?: number; strokeWidth?: number }> = {
     rectangle: { width: 260, height: 160, kind: 'rect', radius: 16, strokeWidth: 2 },
     square: { width: 180, height: 180, kind: 'rect', radius: 12, strokeWidth: 2 },
@@ -144,6 +147,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     const id = this.route.snapshot.paramMap.get('id') || 'new';
     this.recentTextColors = this.loadRecentColors();
     this.recentShapeColors = this.loadShapeColors();
+    this.recentStrokeColors = this.loadStrokeColors();
     this.deck = {
       id,
       title: 'Untitled presentation',
@@ -491,6 +495,30 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     }
     element.data.fill = color;
     this.pushShapeColor(color);
+    this.queueSave();
+  }
+
+  changeShapeStroke(color: string) {
+    const element = this.selectedShapeElement;
+    if (!element || !color) {
+      return;
+    }
+    element.data.stroke = color;
+    this.pushStrokeColor(color);
+    this.queueSave();
+  }
+
+  changeShapeStrokeWidth(value: number | string) {
+    const element = this.selectedShapeElement;
+    if (!element) {
+      return;
+    }
+    const numeric = typeof value === 'string' ? Number(value) : value;
+    if (!Number.isFinite(numeric)) {
+      return;
+    }
+    const clamped = Math.min(this.shapeStrokeRange.max, Math.max(this.shapeStrokeRange.min, numeric));
+    element.data.strokeWidth = clamped;
     this.queueSave();
   }
 
@@ -844,6 +872,30 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.recentShapeColors = [normalized, ...this.recentShapeColors.filter(entry => entry !== normalized)].slice(0, 6);
     try {
       localStorage.setItem(SlidePageComponent.SHAPE_COLOR_STORAGE_KEY, JSON.stringify(this.recentShapeColors));
+    } catch {
+      // ignore storage failures
+    }
+  }
+
+  private loadStrokeColors(): string[] {
+    try {
+      const raw = localStorage.getItem(SlidePageComponent.SHAPE_STROKE_COLOR_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((value: unknown): value is string => typeof value === 'string');
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  }
+
+  private pushStrokeColor(color: string) {
+    const normalized = color.toLowerCase();
+    this.recentStrokeColors = [normalized, ...this.recentStrokeColors.filter(entry => entry !== normalized)].slice(0, 6);
+    try {
+      localStorage.setItem(SlidePageComponent.SHAPE_STROKE_COLOR_STORAGE_KEY, JSON.stringify(this.recentStrokeColors));
     } catch {
       // ignore storage failures
     }

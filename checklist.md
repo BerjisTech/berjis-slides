@@ -49,7 +49,7 @@ Build a full-featured online presentation editor (like PowerPoint/Google Slides)
 - [x] Triangle tool
 - [x] Line/Arrow tool
 - [x] Fill color picker
-- [ ] Border color and width controls
+- [x] Border color and width controls
 - [ ] Border style (solid, dashed, dotted)
 - [ ] Corner radius for rectangles
 - [ ] Shape opacity control
