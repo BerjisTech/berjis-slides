@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../environments/environment';
-import { PresentationData, SlideElement, SlideModel, createId, createSlide } from './models/slide';
+import { PresentationData, SlideElement, SlideElementType, SlideModel, createId, createSlide } from './models/slide';
 
 export type SlideStatus = 'active' | 'archived' | 'deleted';
 export interface SlideDoc {
@@ -19,6 +19,16 @@ export interface SlideCollaborator {
   role: 'viewer' | 'commenter' | 'editor';
   invitedBy?: string;
   createdAt?: string;
+}
+
+export interface UploadedAsset {
+  id: string;
+  url: string;
+  name?: string;
+  size?: number;
+  provider?: string;
+  path?: string;
+  contentType?: string;
 }
 
 interface ApiResponse<T> { success?: boolean; data?: T; message?: string }
@@ -92,6 +102,20 @@ export class SlidesService {
       }
     }
     return this.filterCached(status);
+  }
+
+  async uploadImage(file: File): Promise<UploadedAsset> {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+    const res = await firstValueFrom(this.http.post<ApiResponse<UploadedAsset>>(
+      `${API_BASE}/v1/uploads`,
+      formData,
+      { withCredentials: true }
+    ));
+    if (res?.data && res.data.url) {
+      return res.data;
+    }
+    throw new Error(res?.message || 'Upload failed');
   }
   get(id: string) { return this.cache[id]; }
   async fetch(id: string): Promise<SlideDoc|undefined> {
@@ -326,8 +350,18 @@ export class SlidesService {
     if (!payload || typeof payload !== 'object') {
       return null;
     }
-    const type = payload.type === 'text' ? 'text' : 'shape';
-    return {
+    let type: SlideElementType;
+    switch (payload.type) {
+      case 'text':
+        type = 'text';
+        break;
+      case 'image':
+        type = 'image';
+        break;
+      default:
+        type = 'shape';
+    }
+    const base: SlideElement = {
       id: typeof payload.id === 'string' ? payload.id : createId('el'),
       type,
       x: typeof payload.x === 'number' ? payload.x : 0,
@@ -335,12 +369,14 @@ export class SlidesService {
       width: typeof payload.width === 'number' ? payload.width : 200,
       height: typeof payload.height === 'number' ? payload.height : 80,
       rotation: typeof payload.rotation === 'number' ? payload.rotation : 0,
-      data: {
+      data: {}
+    };
+    if (type === 'text') {
+      base.data = {
         text: payload.data?.text,
-        fontSize: payload.data?.fontSize ?? (type === 'text' ? 24 : undefined),
-        fill: payload.data?.fill ?? (type === 'shape' ? '#cbd5f5' : '#0f172a'),
+        fontSize: payload.data?.fontSize ?? 24,
+        fill: payload.data?.fill ?? '#0f172a',
         stroke: payload.data?.stroke ?? '#1d4ed8',
-        radius: payload.data?.radius ?? 12,
         align: payload.data?.align ?? 'left',
         fontFamily: payload.data?.fontFamily ?? 'Inter',
         bold: Boolean(payload.data?.bold),
@@ -350,8 +386,22 @@ export class SlidesService {
         lineHeight: typeof payload.data?.lineHeight === 'number' ? payload.data.lineHeight : 1.2,
         bulletStyle: ['bullet', 'number', 'none'].includes(payload.data?.bulletStyle)
           ? payload.data.bulletStyle
-          : 'none',
-        shapeKind: ['rect', 'ellipse', 'line', 'arrow'].includes(payload.data?.shapeKind)
+          : 'none'
+      };
+    } else if (type === 'image') {
+      base.data = {
+        assetUrl: typeof payload.data?.assetUrl === 'string' ? payload.data.assetUrl : '',
+        assetName: payload.data?.assetName,
+        assetSize: typeof payload.data?.assetSize === 'number' ? payload.data.assetSize : undefined,
+        assetSource: payload.data?.assetSource === 'external' ? 'external' : 'upload',
+        aspectRatio: typeof payload.data?.aspectRatio === 'number' ? payload.data.aspectRatio : undefined
+      };
+    } else {
+      base.data = {
+        fill: payload.data?.fill ?? '#cbd5f5',
+        stroke: payload.data?.stroke ?? '#1d4ed8',
+        radius: payload.data?.radius ?? 12,
+        shapeKind: ['rect', 'ellipse', 'line', 'arrow', 'triangle'].includes(payload.data?.shapeKind)
           ? payload.data.shapeKind
           : undefined,
         strokeWidth: typeof payload.data?.strokeWidth === 'number' ? payload.data.strokeWidth : undefined,
@@ -359,8 +409,9 @@ export class SlidesService {
           ? payload.data.strokeStyle
           : 'solid',
         opacity: typeof payload.data?.opacity === 'number' ? payload.data.opacity : 1
-      }
-    };
+      };
+    }
+    return base;
   }
   private coerceDate(value: any): string {
     if (typeof value === 'string' && value.trim()) {

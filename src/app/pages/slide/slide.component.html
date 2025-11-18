@@ -91,6 +91,19 @@
         (click)="toggleShapeInsert('triangle')">
         Triangle
       </button>
+      <button class="px-3 py-1 rounded border border-blue-900/15 bg-white/80 text-slate-800 shadow-sm hover:bg-white dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-100"
+        (click)="triggerImageUpload()">
+        Upload image
+      </button>
+      <button class="px-3 py-1 rounded border border-blue-900/15 bg-white/80 text-slate-800 shadow-sm hover:bg-white dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-100"
+        (click)="addImageFromUrl()">
+        Image URL
+      </button>
+      <input #imageFileInput type="file" class="hidden" accept="image/*" (change)="handleImageFileChange($event)" />
+    </div>
+    <div *ngIf="imageUploading || imageUploadError" class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
+      <span *ngIf="imageUploading">Uploading image…</span>
+      <span *ngIf="imageUploadError" class="text-red-500">{{ imageUploadError }}</span>
     </div>
     <div class="flex flex-wrap items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
       <button class="px-2 py-1 border border-blue-900/15 bg-white/85 rounded shadow-sm dark:border-slate-700 dark:bg-slate-900/50" (click)="prevSlide()">&lsaquo;</button>
@@ -405,6 +418,15 @@
               </ng-container>
               <text *ngIf="element.type === 'text'" [attr.x]="element.x + 12" [attr.y]="element.y + (element.data.fontSize || 24)"
                 [attr.font-size]="element.data.fontSize || 24" fill="#0f172a">{{ element.data.text }}</text>
+              <image *ngIf="element.type === 'image'"
+                [attr.x]="element.x"
+                [attr.y]="element.y"
+                [attr.width]="element.width"
+                [attr.height]="element.height"
+                [attr.opacity]="element.data.opacity ?? 1"
+                preserveAspectRatio="xMidYMid meet"
+                [attr.href]="element.data.assetUrl"
+                [attr.xlink:href]="element.data.assetUrl"></image>
             </g>
           </svg>
         </button>
@@ -488,6 +510,15 @@
                       </tspan>
                     </ng-container>
                   </text>
+                  <image *ngIf="element.type === 'image'"
+                    [attr.x]="element.x"
+                    [attr.y]="element.y"
+                    [attr.width]="element.width"
+                    [attr.height]="element.height"
+                    preserveAspectRatio="xMidYMid meet"
+                    [attr.opacity]="element.data.opacity ?? 1"
+                    [attr.href]="element.data.assetUrl"
+                    [attr.xlink:href]="element.data.assetUrl"></image>
                 </g>
               </svg>
             </div>

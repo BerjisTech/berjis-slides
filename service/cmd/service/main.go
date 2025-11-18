@@ -26,7 +26,14 @@ func main() {
 		}
 	}
 
-	app := server.New(server.Options{AllowedOrigins: cfg.AllowedOrigins, DB: conn, CoreAPIBase: cfg.CoreAPIBase})
+	app := server.New(server.Options{
+		AllowedOrigins:    cfg.AllowedOrigins,
+		DB:                conn,
+		CoreAPIBase:       cfg.CoreAPIBase,
+		UploadsDir:        cfg.UploadsDir,
+		UploadsPublicBase: cfg.UploadsPublic,
+		UploadsProvider:   cfg.UploadsProvider,
+	})
 	addr := ":" + cfg.Port
 	log.Printf("starting %s on %s (env=%s)", cfg.AppName, addr, cfg.Env)
 	if err := app.Listen(addr); err != nil {

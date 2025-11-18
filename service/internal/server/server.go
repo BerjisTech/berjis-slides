@@ -4,19 +4,27 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"mime"
 	"net/http"
 	"net/url"
+	"os"
+	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
 	coreauth "github.com/berjistech/berjis-ecosystem/shared/coreauth"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
 type Options struct {
 	AllowedOrigins, CoreAPIBase string
 	DB                          *sqlx.DB
+	UploadsDir                  string
+	UploadsPublicBase           string
+	UploadsProvider             string
 }
 
 type Slide struct {
@@ -29,8 +37,26 @@ type Slide struct {
 	UpdatedAt time.Time       `db:"updated_at" json:"updatedAt"`
 }
 
+const maxUploadBytes = 25 << 20
+
 func New(opts Options) *fiber.App {
 	app := fiber.New()
+	uploadsDir := strings.TrimSpace(opts.UploadsDir)
+	if uploadsDir == "" {
+		uploadsDir = "./docker-data/uploads"
+	}
+	if abs, err := filepath.Abs(uploadsDir); err == nil {
+		uploadsDir = abs
+	}
+	if err := os.MkdirAll(uploadsDir, 0o755); err != nil {
+		fmt.Printf("warn: unable to create uploads dir %s: %v\n", uploadsDir, err)
+	}
+	uploadsPublicBase := strings.TrimSpace(opts.UploadsPublicBase)
+	uploadProvider := strings.TrimSpace(opts.UploadsProvider)
+	if uploadProvider == "" {
+		uploadProvider = "local"
+	}
+
 	httpClientAuth := &http.Client{Timeout: 5 * time.Second}
 	var authVerifier *coreauth.Verifier
 	coreAPIBase := strings.TrimSpace(opts.CoreAPIBase)
@@ -60,6 +86,69 @@ func New(opts Options) *fiber.App {
 			return c.SendStatus(fiber.StatusNoContent)
 		}
 		return c.Next()
+	})
+
+	app.Static("/uploads", fiber.Static{
+		Dir:      uploadsDir,
+		Browse:   false,
+		MaxAge:   3600,
+		Compress: false,
+	})
+
+	app.Post("/v1/uploads", func(c *fiber.Ctx) error {
+		userID, err := getUID(c)
+		if err != nil {
+			return err
+		}
+		file, err := c.FormFile("file")
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "file field is required")
+		}
+		if file.Size <= 0 {
+			return fiber.NewError(fiber.StatusBadRequest, "file is empty")
+		}
+		if file.Size > maxUploadBytes {
+			return fiber.NewError(fiber.StatusRequestEntityTooLarge, "file exceeds 25MB limit")
+		}
+		contentType := file.Header.Get("Content-Type")
+		if !strings.HasPrefix(strings.ToLower(contentType), "image/") {
+			return fiber.NewError(fiber.StatusBadRequest, "only image uploads are allowed")
+		}
+		userDir := filepath.Join(uploadsDir, userID)
+		if err := os.MkdirAll(userDir, 0o755); err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, "unable to prepare uploads directory")
+		}
+		ext := strings.ToLower(filepath.Ext(file.Filename))
+		if ext == "" {
+			if exts, err := mime.ExtensionsByType(contentType); err == nil && len(exts) > 0 {
+				ext = exts[0]
+			}
+		}
+		if ext == "" {
+			ext = ".img"
+		}
+		filename := uuid.NewString() + ext
+		destPath := filepath.Join(userDir, filename)
+		if err := c.SaveFile(file, destPath); err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, "failed to write upload")
+		}
+		relativePath := path.Join(userID, filename)
+		publicURL := strings.TrimSpace(uploadsPublicBase)
+		if publicURL != "" {
+			publicURL = strings.TrimRight(publicURL, "/") + "/" + relativePath
+		} else {
+			publicURL = path.Join("/uploads", relativePath)
+		}
+		return c.JSON(fiber.Map{
+			"success":     true,
+			"id":          filename,
+			"name":        file.Filename,
+			"size":        file.Size,
+			"url":         publicURL,
+			"path":        relativePath,
+			"provider":    uploadProvider,
+			"contentType": contentType,
+		})
 	})
 
 	app.Get("/v1/health", func(c *fiber.Ctx) error { return c.JSON(fiber.Map{"success": true}) })

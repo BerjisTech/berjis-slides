@@ -55,8 +55,8 @@ Build a full-featured online presentation editor (like PowerPoint/Google Slides)
 - [x] Shape opacity control
 
 ### **Image Elements**
-- [ ] Upload image from computer
-- [ ] Image URL insertion
+- [x] Upload image from computer
+- [x] Image URL insertion
 - [ ] Drag-and-drop image upload
 - [ ] Crop/resize functionality
 - [ ] Image filters (brightness, contrast, saturation)

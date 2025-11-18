@@ -1,5 +1,5 @@
 export type SlideLayout = 'blank' | 'title' | 'title-content';
-export type SlideElementType = 'shape' | 'text';
+export type SlideElementType = 'shape' | 'text' | 'image';
 
 export interface SlideElement {
   id: string;
@@ -27,6 +27,11 @@ export interface SlideElement {
     strokeWidth?: number;
     strokeStyle?: 'solid' | 'dashed' | 'dotted';
     opacity?: number;
+    assetUrl?: string;
+    assetName?: string;
+    assetSize?: number;
+    assetSource?: 'upload' | 'external';
+    aspectRatio?: number;
   };
 }
 
@@ -177,5 +182,35 @@ export function createTextElement(text: string, opts: TextElementOptions): Slide
       lineHeight: opts.lineHeight ?? 1.2,
       bulletStyle: opts.bulletStyle ?? 'none'
     },
+  };
+}
+
+export interface ImageElementOptions {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  url: string;
+  name?: string;
+  size?: number;
+  source?: 'upload' | 'external';
+}
+
+export function createImageElement(opts: ImageElementOptions): SlideElement {
+  return {
+    id: createId('el'),
+    type: 'image',
+    x: opts.x,
+    y: opts.y,
+    width: opts.width,
+    height: opts.height,
+    rotation: 0,
+    data: {
+      assetUrl: opts.url,
+      assetName: opts.name,
+      assetSize: opts.size,
+      assetSource: opts.source ?? 'upload',
+      aspectRatio: opts.height > 0 ? opts.width / opts.height : undefined
+    }
   };
 }

@@ -2,8 +2,8 @@ import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } fro
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { SlidesService, SlideCollaborator, SlideDoc, defaultSlides } from '../../slides.service';
-import { CANVAS_HEIGHT, CANVAS_WIDTH, GRID_SIZE, SlideElement, SlideLayout, SlideModel, cloneSlide, createShapeElement, createSlide, createTextElement } from '../../models/slide';
+import { SlidesService, SlideCollaborator, SlideDoc, UploadedAsset, defaultSlides } from '../../slides.service';
+import { CANVAS_HEIGHT, CANVAS_WIDTH, GRID_SIZE, SlideElement, SlideLayout, SlideModel, cloneSlide, createImageElement, createShapeElement, createSlide, createTextElement } from '../../models/slide';
 
 interface AlignmentGuides {
   vertical: number | null;
@@ -92,6 +92,8 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   recentTextColors: string[] = [];
   recentShapeColors: string[] = [];
   recentStrokeColors: string[] = [];
+  imageUploadError: string | null = null;
+  imageUploading = false;
   readonly lineHeightRange = { min: 0.8, max: 2.5, step: 0.1 };
   readonly bulletStyles: ('none' | 'bullet' | 'number')[] = ['none', 'bullet', 'number'];
   readonly strokeStyles: Array<'solid' | 'dashed' | 'dotted'> = ['solid', 'dashed', 'dotted'];
@@ -142,6 +144,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   ];
 
   @ViewChild('canvasSurface', { static: false }) canvasSurface?: ElementRef<HTMLDivElement>;
+  @ViewChild('imageFileInput', { static: false }) imageFileInput?: ElementRef<HTMLInputElement>;
 
   constructor(private route: ActivatedRoute, private router: Router, public svc: SlidesService) {}
 
@@ -241,6 +244,56 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     }
     this.shapeVariant = kind;
     this.insertMode = 'shape';
+  }
+
+  triggerImageUpload() {
+    this.imageUploadError = null;
+    if (this.imageFileInput?.nativeElement) {
+      this.imageFileInput.nativeElement.value = '';
+      this.imageFileInput.nativeElement.click();
+    }
+  }
+
+  async handleImageFileChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input?.files?.length) {
+      return;
+    }
+    const file = input.files[0];
+    if (!file) {
+      return;
+    }
+    this.imageUploadError = null;
+    this.imageUploading = true;
+    try {
+      const asset = await this.svc.uploadImage(file);
+      this.insertUploadedImage(asset);
+    } catch (err) {
+      this.imageUploadError = err instanceof Error ? err.message : 'Upload failed';
+    } finally {
+      this.imageUploading = false;
+      if (this.imageFileInput?.nativeElement) {
+        this.imageFileInput.nativeElement.value = '';
+      }
+    }
+  }
+
+  addImageFromUrl() {
+    const url = prompt('Paste image URL');
+    if (!url) {
+      return;
+    }
+    const trimmed = url.trim();
+    if (!/^https?:\/\//i.test(trimmed)) {
+      this.imageUploadError = 'Enter a valid http(s) URL.';
+      return;
+    }
+    this.imageUploadError = null;
+    this.insertImageElement({
+      url: trimmed,
+      source: 'external',
+      name: trimmed
+    });
   }
 
   selectSlide(index: number) {
@@ -444,6 +497,43 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.selectedElementId = element.id;
     this.insertMode = null;
     this.alignmentGuides = { vertical: null, horizontal: null };
+    this.queueSave();
+  }
+
+  private insertUploadedImage(asset: UploadedAsset) {
+    if (!asset?.url) {
+      this.imageUploadError = 'Upload response missing URL.';
+      return;
+    }
+    this.insertImageElement({
+      url: asset.url,
+      source: 'upload',
+      name: asset.name,
+      size: asset.size
+    });
+  }
+
+  private insertImageElement(options: { url: string; source: 'upload' | 'external'; name?: string; size?: number }) {
+    const slide = this.activeSlide;
+    if (!slide) {
+      return;
+    }
+    const width = 360;
+    const height = 240;
+    const x = (this.canvasWidth - width) / 2;
+    const y = (this.canvasHeight - height) / 2;
+    const element = createImageElement({
+      x,
+      y,
+      width,
+      height,
+      url: options.url,
+      name: options.name,
+      size: options.size,
+      source: options.source
+    });
+    slide.elements.push(element);
+    this.selectedElementId = element.id;
     this.queueSave();
   }
 
