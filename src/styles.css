@@ -1,4 +1,5 @@
 @import "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined";
+@import "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap";
 @import "tailwindcss";
 
 
@@ -16,17 +17,31 @@
 :root {
   color: var(--color-text-primary);
   background-color: var(--color-bg-light-start);
+  color-scheme: light;
 }
 
 html.dark {
   color: var(--color-text-dark);
   background-color: var(--color-bg-dark-start);
+  color-scheme: dark;
 }
 
 html, body {
   min-height: 100%;
   background-color: inherit;
   color: inherit;
+}
+
+body {
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background-image: linear-gradient(135deg, var(--color-bg-light-start), var(--color-bg-light-end));
+  background-size: 200% 200%;
+  background-attachment: fixed;
+  transition: background-image 300ms ease;
+}
+
+html.dark body {
+  background-image: linear-gradient(135deg, var(--color-bg-dark-start), var(--color-bg-dark-end));
 }
 
 a { @apply text-blue-400 hover:text-blue-500 underline-offset-4 decoration-blue-300 hover:decoration-blue-500; }

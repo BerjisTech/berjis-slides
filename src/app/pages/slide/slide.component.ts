@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { SlidesService, SlideCollaborator, SlideDoc, defaultSlides } from '../../slides.service';
-import { CANVAS_HEIGHT, CANVAS_WIDTH, GRID_SIZE, SlideElement, SlideLayout, SlideModel, cloneSlide, createSlide } from '../../models/slide';
+import { CANVAS_HEIGHT, CANVAS_WIDTH, GRID_SIZE, SlideElement, SlideLayout, SlideModel, cloneSlide, createSlide, createTextElement } from '../../models/slide';
 
 interface AlignmentGuides {
   vertical: number | null;
@@ -34,6 +34,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
 
   dragThumbIndex = -1;
   dragOverIndex = -1;
+
   draggingElementId: string | null = null;
   private dragOffset = { x: 0, y: 0 };
   alignmentGuides: AlignmentGuides = { vertical: null, horizontal: null };
@@ -57,6 +58,22 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   renameTitle = '';
 
   pendingSave?: ReturnType<typeof setTimeout>;
+  insertMode: 'text' | null = null;
+  readonly fontFamilies = [
+    'Inter',
+    'Roboto',
+    'Open Sans',
+    'Montserrat',
+    'Work Sans',
+    'Lato',
+    'Source Sans 3',
+    'Poppins',
+    'Nunito',
+    'Merriweather',
+    'Playfair Display',
+    'Space Grotesk'
+  ];
+  readonly fontSizeRange = { min: 8, max: 96 };
 
   contextMenus: { name: string; menus: { name: string; action: string }[] }[] = [
     {
@@ -126,6 +143,12 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   get activeSlide(): SlideModel | null { return this.slides[this.selectedSlideIndex] ?? null; }
   get slideCounterLabel(): string { return `${this.selectedSlideIndex + 1} / ${Math.max(this.slides.length, 1)}`; }
   get canShare(): boolean { return !!this.deck && this.deck.id !== 'new'; }
+  get selectedTextElement(): SlideElement | null {
+    const slide = this.activeSlide;
+    if (!slide) return null;
+    const element = slide.elements.find(el => el.id === this.selectedElementId && el.type === 'text');
+    return element ?? null;
+  }
 
   onMenu(action: string) {
     if (action.startsWith('newSlide:')) {
@@ -163,9 +186,14 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     }
   }
 
+  toggleInsertMode(mode: 'text') {
+    this.insertMode = this.insertMode === mode ? null : mode;
+  }
+
   selectSlide(index: number) {
     this.selectedSlideIndex = index;
     this.selectedElementId = null;
+    this.insertMode = null;
   }
 
   addSlide(layout: SlideLayout) {
@@ -195,7 +223,6 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.selectedSlideIndex = Math.max(0, this.selectedSlideIndex - 1);
     this.queueSave();
   }
-
   onThumbDragStart(index: number) { this.dragThumbIndex = index; }
   onThumbDragOver(event: DragEvent, index: number) { event.preventDefault(); this.dragOverIndex = index; }
   onThumbDrop(event: DragEvent, index: number) {
@@ -215,27 +242,51 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   @HostListener('window:keydown', ['$event'])
   handleKeyDown(event: KeyboardEvent) {
     if (this.isInputTarget(event.target)) return;
-    if (event.code === 'Space') this.spacePressed = true;
-    if (event.key === 'ArrowLeft') { this.prevSlide(); event.preventDefault(); }
-    if (event.key === 'ArrowRight') { this.nextSlide(); event.preventDefault(); }
+    if (event.key === 'Escape' && this.insertMode) {
+      this.insertMode = null;
+      return;
+    }
+    if (event.code === 'Space') {
+      this.spacePressed = true;
+    }
+    if (event.key === 'ArrowLeft') {
+      this.prevSlide();
+      event.preventDefault();
+    }
+    if (event.key === 'ArrowRight') {
+      this.nextSlide();
+      event.preventDefault();
+    }
   }
 
   @HostListener('window:keyup', ['$event'])
   handleKeyUp(event: KeyboardEvent) {
-    if (event.code === 'Space') this.spacePressed = false;
+    if (event.code === 'Space') {
+      this.spacePressed = false;
+    }
   }
 
   prevSlide() { if (this.selectedSlideIndex > 0) this.selectSlide(this.selectedSlideIndex - 1); }
   nextSlide() { if (this.selectedSlideIndex < this.slides.length - 1) this.selectSlide(this.selectedSlideIndex + 1); }
 
   onCanvasPointerDown(event: PointerEvent) {
-    if (this.spacePressed || event.button === 1) { this.startPan(event); return; }
+    if (this.spacePressed || event.button === 1) {
+      this.startPan(event);
+      return;
+    }
+    if (this.insertMode === 'text' && event.button === 0) {
+      this.insertTextElement(event);
+      return;
+    }
     this.selectedElementId = null;
   }
 
   onElementPointerDown(event: PointerEvent, element: SlideElement) {
     event.preventDefault();
     event.stopPropagation();
+    if (this.insertMode) {
+      this.insertMode = null;
+    }
     this.selectedElementId = element.id;
     this.draggingElementId = element.id;
     const { x, y } = this.clientToCanvas(event);
@@ -253,4 +304,339 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       return;
     }
     if (!this.draggingElementId) return;
-    const slide = this.a
+    const slide = this.activeSlide;
+    if (!slide) return;
+    const element = slide.elements.find(el => el.id === this.draggingElementId);
+    if (!element) return;
+    const { x, y } = this.clientToCanvas(event);
+    const nextX = this.snapToGrid(x - this.dragOffset.x);
+    const nextY = this.snapToGrid(y - this.dragOffset.y);
+    element.x = this.clamp(nextX, 0, this.canvasWidth - element.width);
+    element.y = this.clamp(nextY, 0, this.canvasHeight - element.height);
+    this.updateAlignmentGuides(element);
+  }
+
+  @HostListener('window:pointerup', ['$event'])
+  handlePointerUp(event: PointerEvent) {
+    if (this.isPanning) {
+      this.isPanning = false;
+      event.preventDefault();
+    }
+    if (this.draggingElementId) {
+      this.draggingElementId = null;
+      this.alignmentGuides = { vertical: null, horizontal: null };
+      this.queueSave();
+    }
+  }
+
+  private startPan(event: PointerEvent) {
+    this.isPanning = true;
+    this.panOrigin = { ...this.pan };
+    this.panPointerStart = { x: event.clientX, y: event.clientY };
+    event.preventDefault();
+  }
+
+  private insertTextElement(event: PointerEvent) {
+    const slide = this.activeSlide;
+    if (!slide) {
+      return;
+    }
+    event.preventDefault();
+    const { x, y } = this.clientToCanvas(event);
+    const width = 360;
+    const height = 120;
+    const elementX = this.clamp(x - width / 2, 0, this.canvasWidth - width);
+    const elementY = this.clamp(y - height / 2, 0, this.canvasHeight - height);
+    const element = createTextElement('Click to add text', {
+      x: elementX,
+      y: elementY,
+      width,
+      height,
+      fontSize: 28,
+      align: 'left'
+    });
+    slide.elements.push(element);
+    this.selectedElementId = element.id;
+    this.insertMode = null;
+    this.alignmentGuides = { vertical: null, horizontal: null };
+    this.queueSave();
+  }
+
+  toggleRichStyle(style: 'bold' | 'italic' | 'underline' | 'strikethrough') {
+    const element = this.selectedTextElement;
+    if (!element) return;
+    element.data[style] = !element.data[style];
+    this.queueSave();
+  }
+
+  changeFontFamily(family: string) {
+    const element = this.selectedTextElement;
+    if (!element || !family) return;
+    element.data.fontFamily = family;
+    this.queueSave();
+  }
+
+  changeFontSize(size: number | string) {
+    const element = this.selectedTextElement;
+    if (!element) return;
+    const numeric = typeof size === 'string' ? Number(size) : size;
+    if (!Number.isFinite(numeric)) {
+      return;
+    }
+    const clamped = this.clamp(numeric, this.fontSizeRange.min, this.fontSizeRange.max);
+    element.data.fontSize = Math.round(clamped);
+    this.queueSave();
+  }
+
+  updateTextContent(value: string) {
+    const element = this.selectedTextElement;
+    if (!element) return;
+    element.data.text = value;
+    this.queueSave();
+  }
+
+  get selectedFontFamily(): string {
+    return this.selectedTextElement?.data.fontFamily || this.fontFamilies[0];
+  }
+
+  get selectedFontSize(): number {
+    return this.selectedTextElement?.data.fontSize ?? 28;
+  }
+
+  textDecorationFor(element: SlideElement): string | null {
+    if (element.type !== 'text') return null;
+    const parts: string[] = [];
+    if (element.data.underline) parts.push('underline');
+    if (element.data.strikethrough) parts.push('line-through');
+    return parts.length ? parts.join(' ') : null;
+  }
+
+  private cloneSlides(slides: SlideModel[]): SlideModel[] {
+    return slides.map(slide => ({
+      ...slide,
+      elements: slide.elements.map(element => ({
+        ...element,
+        data: { ...element.data }
+      }))
+    }));
+  }
+
+  private async persistDeck() {
+    if (!this.deck) return;
+    const payload: SlideDoc = {
+      ...this.deck,
+      title: this.deck.title?.trim() || 'Untitled presentation',
+      data: { slides: this.cloneSlides(this.slides) },
+      updatedAt: new Date().toISOString()
+    };
+    try {
+      let saved: SlideDoc | undefined;
+      if (payload.id === 'new') {
+        saved = await this.svc.create({ title: payload.title, data: payload.data });
+      } else {
+        saved = await this.svc.save(payload);
+      }
+      if (saved) {
+        this.deck = saved;
+      } else {
+        this.deck = payload;
+      }
+      this.renameTitle = this.deck?.title ?? '';
+    } catch (err) {
+      this.svc.lastError = err instanceof Error ? err.message : 'Unable to save presentation.';
+      this.deck = payload;
+    }
+  }
+
+  queueSave() {
+    if (!this.deck) {
+      return;
+    }
+    if (this.pendingSave) {
+      clearTimeout(this.pendingSave);
+    }
+    this.pendingSave = setTimeout(() => {
+      this.pendingSave = undefined;
+      void this.persistDeck();
+    }, 350);
+  }
+
+  async showOpen() {
+    this.openModal = true;
+    this.openQuery = '';
+    try {
+      this.openRows = await this.svc.list();
+      this.openFiltered = [...this.openRows];
+    } catch (err) {
+      this.openRows = [];
+      this.openFiltered = [];
+      this.svc.lastError = err instanceof Error ? err.message : 'Unable to load presentations.';
+    }
+  }
+
+  showRename() {
+    this.renameModal = true;
+    this.renameTitle = this.deck?.title ?? '';
+  }
+
+  downloadDeck() {
+    if (!this.deck) {
+      return;
+    }
+    const payload = {
+      ...this.deck,
+      data: { slides: this.cloneSlides(this.slides) }
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    const safeTitle = (this.deck.title || 'presentation').replace(/[^a-z0-9-_]+/gi, '-');
+    anchor.download = `${safeTitle}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  present() {
+    if (!this.deck || this.deck.id === 'new') {
+      alert('Save the presentation before presenting.');
+      return;
+    }
+    const base = window.location.origin;
+    window.open(`${base}/slides/${this.deck.id}/present`, '_blank', 'noopener');
+  }
+
+  promptZoom() {
+    const input = prompt('Zoom (%)', `${Math.round(this.zoom * 100)}`);
+    if (!input) return;
+    const parsed = Number(input);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      const normalized = parsed / 100;
+      const min = this.zoomLevels[0];
+      const max = this.zoomLevels[this.zoomLevels.length - 1];
+      this.zoom = this.clamp(normalized, min, max);
+    }
+  }
+
+  async openShare() {
+    if (!this.deck) return;
+    if (this.deck.id === 'new') {
+      await this.persistDeck();
+      if (!this.deck || this.deck.id === 'new') {
+        this.shareError = 'Save deck before sharing.';
+        return;
+      }
+    }
+    this.shareOpen = true;
+    this.shareLoading = true;
+    this.shareError = null;
+    try {
+      this.shareRows = await this.svc.listCollaborators(this.deck.id);
+    } catch (err) {
+      this.shareError = err instanceof Error ? err.message : 'Unable to load collaborators.';
+    } finally {
+      this.shareLoading = false;
+    }
+  }
+
+  private clientToCanvas(event: PointerEvent) {
+    const stage = this.canvasSurface?.nativeElement.querySelector('.editor-stage') as HTMLElement | null;
+    if (!stage) {
+      return { x: 0, y: 0 };
+    }
+    const rect = stage.getBoundingClientRect();
+    const offsetX = event.clientX - rect.left - this.pan.x;
+    const offsetY = event.clientY - rect.top - this.pan.y;
+    const divisor = this.zoom || 1;
+    return {
+      x: offsetX / divisor,
+      y: offsetY / divisor
+    };
+  }
+
+  private snapToGrid(value: number) {
+    if (!this.gridSize) return value;
+    return Math.round(value / this.gridSize) * this.gridSize;
+  }
+
+  private clamp(value: number, min: number, max: number) {
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+  }
+
+  private updateAlignmentGuides(element: SlideElement) {
+    const guides: AlignmentGuides = { vertical: null, horizontal: null };
+    const tolerance = 4;
+    const centerX = element.x + element.width / 2;
+    const centerY = element.y + element.height / 2;
+    const canvasCenterX = this.canvasWidth / 2;
+    const canvasCenterY = this.canvasHeight / 2;
+
+    if (Math.abs(centerX - canvasCenterX) <= tolerance) {
+      element.x = canvasCenterX - element.width / 2;
+      guides.vertical = canvasCenterX;
+    } else if (Math.abs(element.x) <= tolerance) {
+      element.x = 0;
+      guides.vertical = 0;
+    } else if (Math.abs(element.x + element.width - this.canvasWidth) <= tolerance) {
+      element.x = this.canvasWidth - element.width;
+      guides.vertical = this.canvasWidth;
+    }
+
+    if (Math.abs(centerY - canvasCenterY) <= tolerance) {
+      element.y = canvasCenterY - element.height / 2;
+      guides.horizontal = canvasCenterY;
+    } else if (Math.abs(element.y) <= tolerance) {
+      element.y = 0;
+      guides.horizontal = 0;
+    } else if (Math.abs(element.y + element.height - this.canvasHeight) <= tolerance) {
+      element.y = this.canvasHeight - element.height;
+      guides.horizontal = this.canvasHeight;
+    }
+
+    this.alignmentGuides = guides;
+  }
+
+  private isInputTarget(target: EventTarget | null): target is HTMLElement {
+    if (!target) return false;
+    const element = target as HTMLElement;
+    const tag = element.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || element.isContentEditable;
+  }
+
+  get canvasTransform(): string {
+    return `translate(${this.pan.x}px, ${this.pan.y}px) scale(${this.zoom})`;
+  }
+
+  get gridStyle(): Record<string, string> {
+    const size = Math.max(8, this.gridSize * this.zoom);
+    const color = 'rgba(148,163,184,0.25)';
+    return {
+      backgroundImage: `linear-gradient(to right, ${color} 1px, transparent 1px), linear-gradient(to bottom, ${color} 1px, transparent 1px)`,
+      backgroundSize: `${size}px ${size}px`,
+      backgroundPosition: `${this.pan.x}px ${this.pan.y}px`
+    };
+  }
+
+  get horizontalRulerStyle(): Record<string, string> {
+    const spacing = Math.max(10, this.gridSize * this.zoom);
+    const offset = ((this.pan.x % spacing) + spacing) % spacing;
+    return {
+      backgroundImage: 'linear-gradient(to right, rgba(15,23,42,0.25) 1px, transparent 1px)',
+      backgroundSize: `${spacing}px 100%`,
+      backgroundPosition: `${offset}px 0`
+    };
+  }
+
+  get verticalRulerStyle(): Record<string, string> {
+    const spacing = Math.max(10, this.gridSize * this.zoom);
+    const offset = ((this.pan.y % spacing) + spacing) % spacing;
+    return {
+      backgroundImage: 'linear-gradient(to bottom, rgba(15,23,42,0.25) 1px, transparent 1px)',
+      backgroundSize: `100% ${spacing}px`,
+      backgroundPosition: `0 ${offset}px`
+    };
+  }
+
+}

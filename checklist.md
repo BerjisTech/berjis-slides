@@ -9,34 +9,34 @@ Build a full-featured online presentation editor (like PowerPoint/Google Slides)
 
 ---
 
-## **PHASE 1: Core Slide Editor** - [ ]
+## **PHASE 1: Core Slide Editor** - [x]
 
 ### **Canvas & Rendering Engine**
-- [ ] Implement HTML Canvas or SVG-based slide canvas (recommend SVG for easier manipulation)
-- [ ] Create viewport with zoom controls (25%, 50%, 100%, 150%, 200%)
-- [ ] Add pan/drag functionality for canvas navigation
-- [ ] Implement grid/guides system with snap-to-grid
-- [ ] Create ruler components (horizontal/vertical)
-- [ ] Add alignment guides (center, edges) that appear when dragging
+- [x] Implement HTML Canvas or SVG-based slide canvas (recommend SVG for easier manipulation)
+- [x] Create viewport with zoom controls (25%, 50%, 100%, 150%, 200%)
+- [x] Add pan/drag functionality for canvas navigation
+- [x] Implement grid/guides system with snap-to-grid
+- [x] Create ruler components (horizontal/vertical)
+- [x] Add alignment guides (center, edges) that appear when dragging
 
 ### **Slide Management**
-- [ ] Thumbnail sidebar showing all slides
-- [ ] Add new slide (blank, with title, with title+content)
-- [ ] Delete slide with confirmation
-- [ ] Duplicate slide functionality
-- [ ] Reorder slides via drag-and-drop
-- [ ] Slide navigation (previous/next buttons, keyboard arrows)
-- [ ] Slide counter display (e.g., "Slide 3 of 10")
+- [x] Thumbnail sidebar showing all slides
+- [x] Add new slide (blank, with title, with title+content)
+- [x] Delete slide with confirmation
+- [x] Duplicate slide functionality
+- [x] Reorder slides via drag-and-drop
+- [x] Slide navigation (previous/next buttons, keyboard arrows)
+- [x] Slide counter display (e.g., "Slide 3 of 10")
 
 ---
 
 ## **PHASE 2: Element System** - [ ]
 
 ### **Text Elements**
-- [ ] Click-to-add text boxes
-- [ ] Rich text editor toolbar (bold, italic, underline, strikethrough)
-- [ ] Font family selector (10+ common fonts)
-- [ ] Font size control (8pt - 96pt)
+- [x] Click-to-add text boxes
+- [x] Rich text editor toolbar (bold, italic, underline, strikethrough)
+- [x] Font family selector (10+ common fonts)
+- [x] Font size control (8pt - 96pt)
 - [ ] Text color picker with recent colors
 - [ ] Text alignment (left, center, right, justify)
 - [ ] Line height control

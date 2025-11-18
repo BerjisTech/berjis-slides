@@ -282,7 +282,8 @@ export class SlidesService {
   }
   private normalizeData(payload: any): PresentationData {
     if (payload && typeof payload === 'object' && Array.isArray(payload.slides)) {
-      const slides = payload.slides.map((s: any, index: number) => this.normalizeSlide(s, index)).filter((s): s is SlideModel => !!s);
+      const slides = payload.slides.map((s: any, index: number) => this.normalizeSlide(s, index))
+        .filter((s: SlideModel | null): s is SlideModel => !!s);
       if (slides.length) {
         return { slides };
       }
@@ -294,7 +295,8 @@ export class SlidesService {
       return null;
     }
     if (Array.isArray(payload.elements)) {
-      const elements = payload.elements.map((el: any) => this.normalizeElement(el)).filter((e): e is SlideElement => !!e);
+      const elements = payload.elements.map((el: any) => this.normalizeElement(el))
+        .filter((e: SlideElement | null): e is SlideElement => !!e);
       return {
         id: typeof payload.id === 'string' ? payload.id : createId('slide'),
         name: typeof payload.name === 'string' && payload.name.trim() ? payload.name : `Slide ${index + 1}`,
@@ -339,7 +341,12 @@ export class SlidesService {
         fill: payload.data?.fill ?? (type === 'shape' ? '#cbd5f5' : '#0f172a'),
         stroke: payload.data?.stroke ?? '#1d4ed8',
         radius: payload.data?.radius ?? 12,
-        align: payload.data?.align ?? 'left'
+        align: payload.data?.align ?? 'left',
+        fontFamily: payload.data?.fontFamily ?? 'Inter',
+        bold: Boolean(payload.data?.bold),
+        italic: Boolean(payload.data?.italic),
+        underline: Boolean(payload.data?.underline),
+        strikethrough: Boolean(payload.data?.strikethrough)
       }
     };
   }

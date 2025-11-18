@@ -1,5 +1,5 @@
 <div class="w-full h-[145px] overflow-visible px-6 py-4 relative z-20">
-  <div class="h-[70px] flex items-center justify-start gap-4 rounded-2xl bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100 shadow-brand px-4 py-3">
+  <div class="h-[70px] flex items-center justify-start gap-4 rounded-2xl bg-white/90 backdrop-blur border border-blue-900/10 text-slate-900 dark:bg-slate-900/70 dark:border-slate-800 dark:text-slate-100 shadow-brand px-4 py-3">
     <a routerLink="/" class="h-full w-[70px] bg-blue-500/90 dark:bg-blue-400/80 text-white rounded flex items-center justify-center font-semibold">Icon</a>
     <div class="flex-grow">
       <div class="flex items-center justify-start gap-2">
@@ -14,7 +14,7 @@
         </div>
       </div>
       <div class="flex items-center justify-start gap-1 text-sm text-slate-600 dark:text-slate-300">
-        <span *ngFor="let group of contextMenus" class="group relative px-3 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer select-none">
+        <span *ngFor="let group of contextMenus" class="group relative px-3 py-1 rounded hover:bg-white/60 dark:hover:bg-slate-800 cursor-pointer select-none">
           {{ group.name }}
           <div class="hidden group-hover:block absolute top-full left-0 mt-1 rounded-lg shadow bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 min-w-[200px] z-50">
             <button type="button" *ngFor="let menu of group.menus" class="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700"
@@ -28,38 +28,99 @@
     <div class="h-full flex items-center justify-end gap-3 text-slate-700 dark:text-slate-200">
       <div class="hidden sm:block">History</div>
       <div class="hidden sm:block">Comment</div>
-      <button class="px-3 py-1 border border-slate-200 dark:border-slate-600 rounded text-sm font-medium text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 disabled:opacity-50"
+      <button class="px-3 py-1 border border-blue-900/15 dark:border-slate-600 rounded text-sm font-medium text-slate-900 dark:text-slate-100 bg-white/90 dark:bg-slate-800 disabled:opacity-50"
         (click)="openShare()" [disabled]="!canShare">Share</button>
     </div>
   </div>
 </div>
 
-<div class="px-6 pb-10 flex flex-col gap-4">
+<div class="px-6 pb-10 flex flex-col gap-5">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div class="flex flex-wrap items-center gap-2 text-sm">
-      <button class="px-3 py-1 rounded border border-slate-200 dark:border-slate-700" (click)="addSlide('blank')">+ Blank</button>
-      <button class="px-3 py-1 rounded border border-slate-200 dark:border-slate-700" (click)="addSlide('title')">+ Title</button>
-      <button class="px-3 py-1 rounded border border-slate-200 dark:border-slate-700" (click)="addSlide('title-content')">+ Title & Content</button>
-      <button class="px-3 py-1 rounded border border-slate-200 dark:border-slate-700" (click)="duplicateSlide()">Duplicate</button>
-      <button class="px-3 py-1 rounded border border-slate-200 dark:border-red-300 text-red-600" (click)="deleteSlide()">Delete</button>
+      <button class="px-3 py-1 rounded border border-blue-900/15 bg-white/80 text-slate-800 shadow-sm hover:bg-white dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-100" (click)="addSlide('blank')">+ Blank</button>
+      <button class="px-3 py-1 rounded border border-blue-900/15 bg-white/80 text-slate-800 shadow-sm hover:bg-white dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-100" (click)="addSlide('title')">+ Title</button>
+      <button class="px-3 py-1 rounded border border-blue-900/15 bg-white/80 text-slate-800 shadow-sm hover:bg-white dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-100" (click)="addSlide('title-content')">+ Title & Content</button>
+      <button class="px-3 py-1 rounded border border-blue-900/15 bg-white/80 text-slate-800 shadow-sm hover:bg-white dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-100" (click)="duplicateSlide()">Duplicate</button>
+      <button class="px-3 py-1 rounded border border-red-200/80 bg-white/85 text-red-600 shadow-sm hover:bg-white dark:border-red-400/40 dark:bg-slate-900/50" (click)="deleteSlide()">Delete</button>
+      <button class="px-3 py-1 rounded border shadow-sm transition-colors"
+        [ngClass]="insertMode === 'text'
+          ? 'bg-blue-600 text-white border-blue-600 dark:bg-blue-500 dark:text-slate-950'
+          : 'bg-white/80 text-slate-800 border-blue-900/15 dark:bg-slate-900/50 dark:text-slate-100 dark:border-slate-700'"
+        (click)="toggleInsertMode('text')">
+        Text box
+      </button>
     </div>
     <div class="flex flex-wrap items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-      <button class="px-2 py-1 border border-slate-200 dark:border-slate-700 rounded" (click)="prevSlide()">◀</button>
+      <button class="px-2 py-1 border border-blue-900/15 bg-white/85 rounded shadow-sm dark:border-slate-700 dark:bg-slate-900/50" (click)="prevSlide()">&lsaquo;</button>
       <span class="font-medium">Slide {{ slideCounterLabel }}</span>
-      <button class="px-2 py-1 border border-slate-200 dark:border-slate-700 rounded" (click)="nextSlide()">▶</button>
-      <select class="border border-slate-200 dark:border-slate-700 rounded px-2 py-1 bg-white dark:bg-slate-800" [(ngModel)]="zoom" (ngModelChange)="changeZoom($event)">
+      <button class="px-2 py-1 border border-blue-900/15 bg-white/85 rounded shadow-sm dark:border-slate-700 dark:bg-slate-900/50" (click)="nextSlide()">&rsaquo;</button>
+      <select class="border border-blue-900/15 dark:border-slate-700 rounded px-2 py-1 bg-white/90 dark:bg-slate-800" [(ngModel)]="zoom" (ngModelChange)="changeZoom($event)">
         <option *ngFor="let lvl of zoomLevels" [ngValue]="lvl">{{ lvl * 100 | number:'1.0-0' }}%</option>
       </select>
       <span class="text-xs">Hold space + drag to pan</span>
     </div>
   </div>
+  <div *ngIf="insertMode === 'text'" class="flex items-center gap-2 text-xs text-blue-900 dark:text-blue-200 bg-blue-50/80 dark:bg-blue-900/30 border border-blue-200/70 dark:border-blue-800 rounded-full px-3 py-1 w-fit">
+    <span class="material-symbols-outlined text-base">edit_note</span>
+    Text tool active — click anywhere on the slide to drop a text box. Press Esc to cancel.
+  </div>
+  <div *ngIf="selectedTextElement as textEl" class="space-y-3">
+    <div class="flex flex-wrap items-center gap-3 bg-white/90 dark:bg-slate-900/70 border border-blue-900/10 dark:border-slate-800 rounded-2xl px-4 py-3 shadow-sm">
+      <div class="flex items-center gap-2">
+        <button type="button" class="px-2 py-1 rounded border border-transparent hover:bg-blue-50 dark:hover:bg-slate-800"
+          [class.bg-blue-600]="textEl.data.bold"
+          [class.text-white]="textEl.data.bold"
+          (click)="toggleRichStyle('bold')">
+          B
+        </button>
+        <button type="button" class="px-2 py-1 rounded border border-transparent hover:bg-blue-50 dark:hover:bg-slate-800 font-serif italic"
+          [class.bg-blue-600]="textEl.data.italic"
+          [class.text-white]="textEl.data.italic"
+          (click)="toggleRichStyle('italic')">
+          I
+        </button>
+        <button type="button" class="px-2 py-1 rounded border border-transparent hover:bg-blue-50 dark:hover:bg-slate-800 underline"
+          [class.bg-blue-600]="textEl.data.underline"
+          [class.text-white]="textEl.data.underline"
+          (click)="toggleRichStyle('underline')">
+          U
+        </button>
+        <button type="button" class="px-2 py-1 rounded border border-transparent hover:bg-blue-50 dark:hover:bg-slate-800 line-through"
+          [class.bg-blue-600]="textEl.data.strikethrough"
+          [class.text-white]="textEl.data.strikethrough"
+          (click)="toggleRichStyle('strikethrough')">
+          S
+        </button>
+      </div>
+      <div class="flex items-center gap-2 text-sm">
+        <label class="text-slate-500 dark:text-slate-300">Font</label>
+        <select class="border border-blue-900/15 dark:border-slate-700 rounded px-2 py-1 bg-white/90 dark:bg-slate-800"
+          [ngModel]="selectedFontFamily"
+          (ngModelChange)="changeFontFamily($event)">
+          <option *ngFor="let family of fontFamilies" [ngValue]="family">{{ family }}</option>
+        </select>
+      </div>
+      <div class="flex items-center gap-2 text-sm">
+        <label class="text-slate-500 dark:text-slate-300">Size</label>
+        <input type="number" class="w-20 border border-blue-900/15 dark:border-slate-700 rounded px-2 py-1 bg-white/90 dark:bg-slate-800"
+          [min]="fontSizeRange.min"
+          [max]="fontSizeRange.max"
+          [ngModel]="selectedFontSize"
+          (ngModelChange)="changeFontSize($event)">
+      </div>
+    </div>
+    <textarea class="w-full min-h-[80px] rounded-2xl border border-blue-900/10 dark:border-slate-800 bg-white/90 dark:bg-slate-900/70 px-4 py-3 text-sm"
+      placeholder="Start typing..."
+      [ngModel]="textEl.data.text || ''"
+      (ngModelChange)="updateTextContent($event)"></textarea>
+  </div>
 
   <div class="flex gap-4 items-start">
-    <aside class="w-56 bg-white/90 dark:bg-slate-900/70 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-3">
+    <aside class="w-56 bg-white/80 backdrop-blur dark:bg-slate-900/70 rounded-2xl border border-blue-900/10 dark:border-slate-800 shadow-sm p-3">
       <div class="text-sm font-semibold mb-3 text-slate-700 dark:text-slate-200">Slides</div>
-      <div class="flex flex-col gap-2 max-h-[70vh] overflow-auto">
+      <div class="flex flex-col gap-2 max-h-[70vh] overflow-auto pr-1">
         <button type="button" *ngFor="let slide of slides; let i = index"
-          class="border rounded-xl p-2 text-left bg-white dark:bg-slate-900/60 cursor-pointer transition shadow-sm hover:shadow-md"
+          class="border border-blue-900/10 dark:border-slate-700 rounded-xl p-2 text-left bg-white/90 dark:bg-slate-900/60 cursor-pointer transition shadow-sm hover:shadow-md"
           [class.border-blue-500]="selectedSlideIndex === i"
           draggable="true"
           (dragstart)="onThumbDragStart(i)"
@@ -69,9 +130,9 @@
           (click)="selectSlide(i)">
           <div class="text-xs text-slate-500 flex items-center justify-between">
             <span>Slide {{ i + 1 }}</span>
-            <span *ngIf="dragOverIndex === i" class="text-blue-500">●</span>
+            <span *ngIf="dragOverIndex === i" class="text-blue-500">&bull;</span>
           </div>
-          <svg [attr.viewBox]="'0 0 ' + canvasWidth + ' ' + canvasHeight" class="w-full mt-2 rounded border border-slate-200 dark:border-slate-700 bg-slate-50">
+          <svg [attr.viewBox]="'0 0 ' + canvasWidth + ' ' + canvasHeight" class="w-full mt-2 rounded border border-blue-900/10 dark:border-slate-700 bg-slate-50">
             <g *ngFor="let element of slide.elements">
               <rect *ngIf="element.type === 'shape'" [attr.x]="element.x" [attr.y]="element.y" [attr.width]="element.width" [attr.height]="element.height"
                 [attr.rx]="element.data.radius || 8" [attr.fill]="element.data.fill || '#cbd5f5'" [attr.stroke]="element.data.stroke || 'transparent'" stroke-width="1" />
@@ -84,18 +145,43 @@
     </aside>
 
     <div class="flex-1 space-y-3">
-      <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+      <div class="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
         <div>Grid: {{ gridSize }}px • Zoom: {{ (zoom * 100) | number:'1.0-0' }}%</div>
         <div>Pan offset: {{ pan.x | number:'1.0-0' }}, {{ pan.y | number:'1.0-0' }}</div>
       </div>
-      <div class="relative rounded-3xl bg-white dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 shadow-xl p-4" #canvasSurface (pointerdown)="onCanvasPointerDown($event)">
-        <div class="absolute top-0 left-12 right-0 h-8 bg-slate-200/70 dark:bg-slate-700/70 border-b border-slate-300 dark:border-slate-600" [ngStyle]="horizontalRulerStyle"></div>
-        <div class="absolute top-12 left-0 bottom-0 w-8 bg-slate-200/70 dark:bg-slate-700/70 border-r border-slate-300 dark:border-slate-600" [ngStyle]="verticalRulerStyle"></div>
-        <div class="ml-12 mt-12 overflow-hidden rounded-2xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 min-h-[600px] select-none">
+      <div class="relative rounded-3xl bg-white/85 backdrop-blur dark:bg-slate-900/60 border border-blue-900/15 dark:border-slate-800 shadow-xl p-4" #canvasSurface (pointerdown)="onCanvasPointerDown($event)" [class.cursor-text]="insertMode === 'text'">
+        <div class="absolute top-0 left-12 right-0 h-8 bg-blue-100/70 dark:bg-slate-700/70 border-b border-blue-200/80 dark:border-slate-600" [ngStyle]="horizontalRulerStyle"></div>
+        <div class="absolute top-12 left-0 bottom-0 w-8 bg-blue-100/70 dark:bg-slate-700/70 border-r border-blue-200/80 dark:border-slate-600" [ngStyle]="verticalRulerStyle"></div>
+        <div class="ml-12 mt-12 overflow-hidden rounded-2xl bg-slate-50/90 dark:bg-slate-950/80 border border-blue-900/10 dark:border-slate-800 min-h-[600px] select-none editor-stage">
           <div class="relative" [style.width.px]="canvasWidth + 400" [style.height.px]="canvasHeight + 400">
-            <div class="absolute" [style.transform]="canvasTransform" [style.width.px]="canvasWidth" [style.height.px]="canvasHeight">
+            <div class="absolute editor-canvas" [style.transform]="canvasTransform" [style.width.px]="canvasWidth" [style.height.px]="canvasHeight">
               <div class="absolute inset-0" [ngStyle]="gridStyle"></div>
+              <div class="absolute inset-0 pointer-events-none">
+                <div *ngIf="alignmentGuides.vertical !== null" class="absolute top-0 bottom-0 w-0.5 bg-blue-500/60" [style.left.px]="alignmentGuides.vertical"></div>
+                <div *ngIf="alignmentGuides.horizontal !== null" class="absolute left-0 right-0 h-0.5 bg-blue-500/60" [style.top.px]="alignmentGuides.horizontal"></div>
+              </div>
               <svg [attr.viewBox]="'0 0 ' + canvasWidth + ' ' + canvasHeight" class="relative z-10 w-full h-full">
                 <g *ngFor="let element of activeSlide?.elements" (pointerdown)="onElementPointerDown($event, element)" class="cursor-move">
                   <rect *ngIf="element.type === 'shape'" [attr.x]="element.x" [attr.y]="element.y" [attr.width]="element.width" [attr.height]="element.height"
-                    [attr.rx]="element.data.radius || 12" [attr.fill]="element.data.fill || '#cbd5f5'" [attr.
+                    [attr.rx]="element.data.radius || 12"
+                    [attr.fill]="element.data.fill || '#cbd5f5'"
+                    [attr.stroke]="selectedElementId === element.id ? '#2563eb' : (element.data.stroke || 'transparent')"
+                    stroke-width="2" />
+                  <text *ngIf="element.type === 'text'" [attr.x]="element.x + 12" [attr.y]="element.y + (element.data.fontSize || 24)"
+                    [attr.font-size]="element.data.fontSize || 24"
+                    [attr.fill]="element.data.fill || '#0f172a'"
+                    [attr.font-family]="element.data.fontFamily || 'Inter'"
+                    [attr.font-weight]="element.data.bold ? '700' : '400'"
+                    [attr.font-style]="element.data.italic ? 'italic' : 'normal'"
+                    [attr.text-decoration]="textDecorationFor(element)">
+                    {{ element.data.text }}
+                  </text>
+                </g>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

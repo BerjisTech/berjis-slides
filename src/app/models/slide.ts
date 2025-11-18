@@ -16,6 +16,11 @@ export interface SlideElement {
     stroke?: string;
     radius?: number;
     align?: 'left' | 'center' | 'right';
+    fontFamily?: string;
+    bold?: boolean;
+    italic?: boolean;
+    underline?: boolean;
+    strikethrough?: boolean;
   };
 }
 
@@ -109,7 +114,22 @@ function createShapeElement(opts: { x: number; y: number; width: number; height:
   };
 }
 
-function createTextElement(text: string, opts: { x: number; y: number; width: number; height: number; fontSize: number; align?: 'left' | 'center' | 'right'; }): SlideElement {
+export interface TextElementOptions {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fontSize: number;
+  align?: 'left' | 'center' | 'right';
+  fill?: string;
+  fontFamily?: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  strikethrough?: boolean;
+}
+
+export function createTextElement(text: string, opts: TextElementOptions): SlideElement {
   return {
     id: createId('el'),
     type: 'text',
@@ -121,8 +141,13 @@ function createTextElement(text: string, opts: { x: number; y: number; width: nu
     data: {
       text,
       fontSize: opts.fontSize,
-      fill: '#0f172a',
-      align: opts.align ?? 'left'
+      fill: opts.fill ?? '#0f172a',
+      align: opts.align ?? 'left',
+      fontFamily: opts.fontFamily ?? 'Inter',
+      bold: opts.bold ?? false,
+      italic: opts.italic ?? false,
+      underline: opts.underline ?? false,
+      strikethrough: opts.strikethrough ?? false
     },
   };
 }
