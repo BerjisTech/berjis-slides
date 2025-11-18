@@ -532,6 +532,20 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.queueSave();
   }
 
+  changeShapeRadius(value: number | string) {
+    const element = this.selectedShapeElement;
+    if (!element || element.data.shapeKind !== 'rect') {
+      return;
+    }
+    const numeric = typeof value === 'string' ? Number(value) : value;
+    if (!Number.isFinite(numeric)) {
+      return;
+    }
+    const clamped = Math.max(0, Math.min(300, numeric));
+    element.data.radius = clamped;
+    this.queueSave();
+  }
+
   changeLineHeight(value: number | string) {
     const element = this.selectedTextElement;
     if (!element) {
