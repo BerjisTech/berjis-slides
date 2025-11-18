@@ -46,7 +46,7 @@ Build a full-featured online presentation editor (like PowerPoint/Google Slides)
 ### **Shape Elements**
 - [x] Rectangle/Square tool
 - [x] Circle/Ellipse tool
-- [ ] Triangle tool
+- [x] Triangle tool
 - [x] Line/Arrow tool
 - [ ] Fill color picker
 - [ ] Border color and width controls

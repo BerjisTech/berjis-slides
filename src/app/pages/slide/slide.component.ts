@@ -90,13 +90,14 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   recentTextColors: string[] = [];
   readonly lineHeightRange = { min: 0.8, max: 2.5, step: 0.1 };
   readonly bulletStyles: ('none' | 'bullet' | 'number')[] = ['none', 'bullet', 'number'];
-  shapeVariant: 'rectangle' | 'square' | 'ellipse' | 'line' | 'arrow' = 'rectangle';
-  readonly shapePresets: Record<'rectangle' | 'square' | 'ellipse' | 'line' | 'arrow', { width: number; height: number; kind: 'rect' | 'ellipse' | 'line' | 'arrow'; radius?: number; strokeWidth?: number }> = {
+  shapeVariant: 'rectangle' | 'square' | 'ellipse' | 'line' | 'arrow' | 'triangle' = 'rectangle';
+  readonly shapePresets: Record<'rectangle' | 'square' | 'ellipse' | 'line' | 'arrow' | 'triangle', { width: number; height: number; kind: 'rect' | 'ellipse' | 'line' | 'arrow' | 'triangle'; radius?: number; strokeWidth?: number }> = {
     rectangle: { width: 260, height: 160, kind: 'rect', radius: 16, strokeWidth: 2 },
     square: { width: 180, height: 180, kind: 'rect', radius: 12, strokeWidth: 2 },
     ellipse: { width: 240, height: 160, kind: 'ellipse', strokeWidth: 2 },
     line: { width: 220, height: 0, kind: 'line', strokeWidth: 3 },
-    arrow: { width: 220, height: 0, kind: 'arrow', strokeWidth: 3 }
+    arrow: { width: 220, height: 0, kind: 'arrow', strokeWidth: 3 },
+    triangle: { width: 220, height: 160, kind: 'triangle', strokeWidth: 2 }
   };
 
   contextMenus: { name: string; menus: { name: string; action: string }[] }[] = [
@@ -216,7 +217,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.insertMode = this.insertMode === mode ? null : mode;
   }
 
-  toggleShapeInsert(kind: 'rectangle' | 'square' | 'ellipse' | 'line' | 'arrow') {
+  toggleShapeInsert(kind: 'rectangle' | 'square' | 'ellipse' | 'line' | 'arrow' | 'triangle') {
     if (this.insertMode === 'shape' && this.shapeVariant === kind) {
       this.insertMode = null;
       return;
@@ -534,6 +535,8 @@ export class SlidePageComponent implements OnInit, OnDestroy {
         return 'Line';
       case 'arrow':
         return 'Arrow';
+      case 'triangle':
+        return 'Triangle';
       default:
         return 'Rectangle';
     }
@@ -904,5 +907,12 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     const p2 = `${baseX + offsetX},${baseY + offsetY}`;
     const p3 = `${baseX - offsetX},${baseY - offsetY}`;
     return `${p1} ${p2} ${p3}`;
+  }
+
+  trianglePoints(element: SlideElement): string {
+    const top = `${element.x + element.width / 2},${element.y}`;
+    const left = `${element.x},${element.y + element.height}`;
+    const right = `${element.x + element.width},${element.y + element.height}`;
+    return `${top} ${left} ${right}`;
   }
 }

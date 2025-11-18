@@ -84,6 +84,13 @@
         (click)="toggleShapeInsert('arrow')">
         Arrow
       </button>
+      <button class="px-3 py-1 rounded border shadow-sm transition-colors"
+        [ngClass]="insertMode === 'shape' && shapeVariant === 'triangle'
+          ? 'bg-blue-600 text-white border-blue-600 dark:bg-blue-500 dark:text-slate-950'
+          : 'bg-white/80 text-slate-800 border-blue-900/15 dark:bg-slate-900/50 dark:text-slate-100 dark:border-slate-700'"
+        (click)="toggleShapeInsert('triangle')">
+        Triangle
+      </button>
     </div>
     <div class="flex flex-wrap items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
       <button class="px-2 py-1 border border-blue-900/15 bg-white/85 rounded shadow-sm dark:border-slate-700 dark:bg-slate-900/50" (click)="prevSlide()">&lsaquo;</button>
@@ -247,12 +254,17 @@
           <svg [attr.viewBox]="'0 0 ' + canvasWidth + ' ' + canvasHeight" class="w-full mt-2 rounded border border-blue-900/10 dark:border-slate-700 bg-slate-50">
             <g *ngFor="let element of slide.elements">
               <ng-container *ngIf="element.type === 'shape'">
-                <ng-container [ngSwitch]="element.data.shapeKind">
-                  <ellipse *ngSwitchCase="'ellipse'"
-                    [attr.cx]="element.x + element.width / 2"
-                    [attr.cy]="element.y + element.height / 2"
-                    [attr.rx]="element.width / 2"
-                    [attr.ry]="element.height / 2"
+                  <ng-container [ngSwitch]="element.data.shapeKind">
+                    <ellipse *ngSwitchCase="'ellipse'"
+                      [attr.cx]="element.x + element.width / 2"
+                      [attr.cy]="element.y + element.height / 2"
+                      [attr.rx]="element.width / 2"
+                      [attr.ry]="element.height / 2"
+                      [attr.fill]="element.data.fill || '#cbd5f5'"
+                      [attr.stroke]="element.data.stroke || 'transparent'"
+                      stroke-width="1" />
+                  <polygon *ngSwitchCase="'triangle'"
+                    [attr.points]="trianglePoints(element)"
                     [attr.fill]="element.data.fill || '#cbd5f5'"
                     [attr.stroke]="element.data.stroke || 'transparent'"
                     stroke-width="1" />
@@ -312,6 +324,11 @@
                         [attr.cy]="element.y + element.height / 2"
                         [attr.rx]="element.width / 2"
                         [attr.ry]="element.height / 2"
+                        [attr.fill]="element.data.fill || '#cbd5f5'"
+                        [attr.stroke]="selectedElementId === element.id ? '#2563eb' : (element.data.stroke || 'transparent')"
+                        [attr.stroke-width]="lineStrokeWidth(element)" />
+                      <polygon *ngSwitchCase="'triangle'"
+                        [attr.points]="trianglePoints(element)"
                         [attr.fill]="element.data.fill || '#cbd5f5'"
                         [attr.stroke]="selectedElementId === element.id ? '#2563eb' : (element.data.stroke || 'transparent')"
                         [attr.stroke-width]="lineStrokeWidth(element)" />
