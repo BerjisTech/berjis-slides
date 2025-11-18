@@ -25,6 +25,7 @@ export interface SlideElement {
     bulletStyle?: 'none' | 'bullet' | 'number';
     shapeKind?: 'rect' | 'ellipse' | 'line' | 'arrow' | 'triangle';
     strokeWidth?: number;
+    strokeStyle?: 'solid' | 'dashed' | 'dotted';
   };
 }
 
@@ -111,6 +112,7 @@ export interface ShapeElementOptions {
   radius?: number;
   shapeKind?: 'rect' | 'ellipse' | 'line' | 'arrow' | 'triangle';
   strokeWidth?: number;
+  strokeStyle?: 'solid' | 'dashed' | 'dotted';
 }
 
 export function createShapeElement(opts: ShapeElementOptions): SlideElement {
@@ -127,7 +129,8 @@ export function createShapeElement(opts: ShapeElementOptions): SlideElement {
       stroke: opts.stroke ?? '#1d4ed8',
       radius: opts.radius ?? 12,
       shapeKind: opts.shapeKind ?? 'rect',
-      strokeWidth: opts.strokeWidth ?? 2
+      strokeWidth: opts.strokeWidth ?? 2,
+      strokeStyle: opts.strokeStyle ?? 'solid'
     },
   };
 }

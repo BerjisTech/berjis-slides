@@ -354,7 +354,10 @@ export class SlidesService {
         shapeKind: ['rect', 'ellipse', 'line', 'arrow'].includes(payload.data?.shapeKind)
           ? payload.data.shapeKind
           : undefined,
-        strokeWidth: typeof payload.data?.strokeWidth === 'number' ? payload.data.strokeWidth : undefined
+        strokeWidth: typeof payload.data?.strokeWidth === 'number' ? payload.data.strokeWidth : undefined,
+        strokeStyle: ['solid', 'dashed', 'dotted'].includes(payload.data?.strokeStyle)
+          ? payload.data.strokeStyle
+          : 'solid'
       }
     };
   }

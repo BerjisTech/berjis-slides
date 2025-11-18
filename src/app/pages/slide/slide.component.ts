@@ -94,6 +94,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   recentStrokeColors: string[] = [];
   readonly lineHeightRange = { min: 0.8, max: 2.5, step: 0.1 };
   readonly bulletStyles: ('none' | 'bullet' | 'number')[] = ['none', 'bullet', 'number'];
+  readonly strokeStyles: Array<'solid' | 'dashed' | 'dotted'> = ['solid', 'dashed', 'dotted'];
   shapeVariant: 'rectangle' | 'square' | 'ellipse' | 'line' | 'arrow' | 'triangle' = 'rectangle';
   readonly shapeStrokeRange = { min: 1, max: 12, step: 1 };
   readonly shapePresets: Record<'rectangle' | 'square' | 'ellipse' | 'line' | 'arrow' | 'triangle', { width: number; height: number; kind: 'rect' | 'ellipse' | 'line' | 'arrow' | 'triangle'; radius?: number; strokeWidth?: number }> = {
@@ -519,6 +520,15 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     }
     const clamped = Math.min(this.shapeStrokeRange.max, Math.max(this.shapeStrokeRange.min, numeric));
     element.data.strokeWidth = clamped;
+    this.queueSave();
+  }
+
+  changeShapeStrokeStyle(style: 'solid' | 'dashed' | 'dotted') {
+    const element = this.selectedShapeElement;
+    if (!element) {
+      return;
+    }
+    element.data.strokeStyle = style;
     this.queueSave();
   }
 
@@ -1011,5 +1021,16 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     const left = `${element.x},${element.y + element.height}`;
     const right = `${element.x + element.width},${element.y + element.height}`;
     return `${top} ${left} ${right}`;
+  }
+
+  strokeDashArray(element: SlideElement): string | null {
+    const style = element.data.strokeStyle ?? 'solid';
+    if (style === 'dashed') {
+      return `${this.lineStrokeWidth(element) * 3} ${this.lineStrokeWidth(element) * 2}`;
+    }
+    if (style === 'dotted') {
+      return `${this.lineStrokeWidth(element)} ${this.lineStrokeWidth(element) * 1.5}`;
+    }
+    return null;
   }
 }

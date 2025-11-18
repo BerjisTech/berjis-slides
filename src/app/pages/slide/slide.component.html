@@ -296,6 +296,24 @@
           [ngModel]="shape.data.strokeWidth || shapeStrokeRange.min"
           (ngModelChange)="changeShapeStrokeWidth($event)">
       </div>
+      <div class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-200">
+        <label class="text-xs">Stroke style</label>
+        <button type="button"
+          class="px-2 py-1 rounded border border-transparent hover:bg-blue-50 dark:hover:bg-slate-800"
+          [class.bg-blue-600]="shape.data.strokeStyle === 'solid' || !shape.data.strokeStyle"
+          [class.text-white]="shape.data.strokeStyle === 'solid' || !shape.data.strokeStyle"
+          (click)="changeShapeStrokeStyle('solid')">Solid</button>
+        <button type="button"
+          class="px-2 py-1 rounded border border-transparent hover:bg-blue-50 dark:hover:bg-slate-800"
+          [class.bg-blue-600]="shape.data.strokeStyle === 'dashed'"
+          [class.text-white]="shape.data.strokeStyle === 'dashed'"
+          (click)="changeShapeStrokeStyle('dashed')">Dashed</button>
+        <button type="button"
+          class="px-2 py-1 rounded border border-transparent hover:bg-blue-50 dark:hover:bg-slate-800"
+          [class.bg-blue-600]="shape.data.strokeStyle === 'dotted'"
+          [class.text-white]="shape.data.strokeStyle === 'dotted'"
+          (click)="changeShapeStrokeStyle('dotted')">Dotted</button>
+      </div>
     </div>
   </div>
 
@@ -320,14 +338,15 @@
             <g *ngFor="let element of slide.elements">
               <ng-container *ngIf="element.type === 'shape'">
                   <ng-container [ngSwitch]="element.data.shapeKind">
-                    <ellipse *ngSwitchCase="'ellipse'"
-                      [attr.cx]="element.x + element.width / 2"
-                      [attr.cy]="element.y + element.height / 2"
-                      [attr.rx]="element.width / 2"
-                      [attr.ry]="element.height / 2"
-                      [attr.fill]="element.data.fill || '#cbd5f5'"
-                      [attr.stroke]="element.data.stroke || 'transparent'"
-                      stroke-width="1" />
+                  <ellipse *ngSwitchCase="'ellipse'"
+                    [attr.cx]="element.x + element.width / 2"
+                    [attr.cy]="element.y + element.height / 2"
+                    [attr.rx]="element.width / 2"
+                    [attr.ry]="element.height / 2"
+                    [attr.fill]="element.data.fill || '#cbd5f5'"
+                    [attr.stroke]="element.data.stroke || 'transparent'"
+                    [attr.stroke-dasharray]="strokeDashArray(element)"
+                    stroke-width="1" />
                   <polygon *ngSwitchCase="'triangle'"
                     [attr.points]="trianglePoints(element)"
                     [attr.fill]="element.data.fill || '#cbd5f5'"
@@ -339,13 +358,15 @@
                     [attr.x2]="element.x + element.width"
                     [attr.y2]="element.y + element.height"
                     [attr.stroke]="element.data.stroke || '#1d4ed8'"
-                    stroke-width="element.data.strokeWidth || 2" />
+                    stroke-width="element.data.strokeWidth || 2"
+                    [attr.stroke-dasharray]="strokeDashArray(element)" />
                   <g *ngSwitchCase="'arrow'">
                     <line [attr.x1]="element.x" [attr.y1]="element.y"
                       [attr.x2]="element.x + element.width"
                       [attr.y2]="element.y + element.height"
                       [attr.stroke]="element.data.stroke || '#1d4ed8'"
-                      stroke-width="element.data.strokeWidth || 2" />
+                      stroke-width="element.data.strokeWidth || 2"
+                      [attr.stroke-dasharray]="strokeDashArray(element)" />
                     <polygon [attr.points]="arrowHeadPoints(element)"
                       [attr.fill]="element.data.stroke || '#1d4ed8'"></polygon>
                   </g>
@@ -383,15 +404,16 @@
               <svg [attr.viewBox]="'0 0 ' + canvasWidth + ' ' + canvasHeight" class="relative z-10 w-full h-full">
                 <g *ngFor="let element of activeSlide?.elements" (pointerdown)="onElementPointerDown($event, element)" class="cursor-move">
                   <ng-container *ngIf="element.type === 'shape'">
-                    <ng-container [ngSwitch]="element.data.shapeKind">
-                      <ellipse *ngSwitchCase="'ellipse'"
-                        [attr.cx]="element.x + element.width / 2"
-                        [attr.cy]="element.y + element.height / 2"
-                        [attr.rx]="element.width / 2"
-                        [attr.ry]="element.height / 2"
-                        [attr.fill]="element.data.fill || '#cbd5f5'"
-                        [attr.stroke]="selectedElementId === element.id ? '#2563eb' : (element.data.stroke || 'transparent')"
-                        [attr.stroke-width]="lineStrokeWidth(element)" />
+                  <ng-container [ngSwitch]="element.data.shapeKind">
+                    <ellipse *ngSwitchCase="'ellipse'"
+                      [attr.cx]="element.x + element.width / 2"
+                      [attr.cy]="element.y + element.height / 2"
+                      [attr.rx]="element.width / 2"
+                      [attr.ry]="element.height / 2"
+                      [attr.fill]="element.data.fill || '#cbd5f5'"
+                      [attr.stroke]="selectedElementId === element.id ? '#2563eb' : (element.data.stroke || 'transparent')"
+                      [attr.stroke-width]="lineStrokeWidth(element)"
+                      [attr.stroke-dasharray]="strokeDashArray(element)" />
                       <polygon *ngSwitchCase="'triangle'"
                         [attr.points]="trianglePoints(element)"
                         [attr.fill]="element.data.fill || '#cbd5f5'"
@@ -405,21 +427,23 @@
                           [attr.stroke-width]="lineStrokeWidth(element)" />
                       </g>
                       <g *ngSwitchCase="'arrow'">
-                        <line
-                          [attr.x1]="element.x" [attr.y1]="element.y"
-                          [attr.x2]="element.x + element.width" [attr.y2]="element.y + element.height"
-                          [attr.stroke]="selectedElementId === element.id ? '#2563eb' : (element.data.stroke || '#1d4ed8')"
-                          [attr.stroke-width]="lineStrokeWidth(element)" />
-                        <polygon [attr.points]="arrowHeadPoints(element)"
-                          [attr.fill]="selectedElementId === element.id ? '#2563eb' : (element.data.stroke || '#1d4ed8')"></polygon>
-                      </g>
-                      <rect *ngSwitchDefault
-                        [attr.x]="element.x" [attr.y]="element.y" [attr.width]="element.width" [attr.height]="element.height"
-                        [attr.rx]="element.data.radius || 12"
-                        [attr.fill]="element.data.fill || '#cbd5f5'"
-                        [attr.stroke]="selectedElementId === element.id ? '#2563eb' : (element.data.stroke || 'transparent')"
-                        [attr.stroke-width]="lineStrokeWidth(element)" />
-                    </ng-container>
+                      <line
+                        [attr.x1]="element.x" [attr.y1]="element.y"
+                        [attr.x2]="element.x + element.width" [attr.y2]="element.y + element.height"
+                        [attr.stroke]="selectedElementId === element.id ? '#2563eb' : (element.data.stroke || '#1d4ed8')"
+                        [attr.stroke-width]="lineStrokeWidth(element)"
+                        [attr.stroke-dasharray]="strokeDashArray(element)" />
+                      <polygon [attr.points]="arrowHeadPoints(element)"
+                        [attr.fill]="selectedElementId === element.id ? '#2563eb' : (element.data.stroke || '#1d4ed8')"></polygon>
+                    </g>
+                    <rect *ngSwitchDefault
+                      [attr.x]="element.x" [attr.y]="element.y" [attr.width]="element.width" [attr.height]="element.height"
+                      [attr.rx]="element.data.radius || 12"
+                      [attr.fill]="element.data.fill || '#cbd5f5'"
+                      [attr.stroke]="selectedElementId === element.id ? '#2563eb' : (element.data.stroke || 'transparent')"
+                      [attr.stroke-width]="lineStrokeWidth(element)"
+                      [attr.stroke-dasharray]="strokeDashArray(element)" />
+                  </ng-container>
                   </ng-container>
                   <text *ngIf="element.type === 'text'" [attr.x]="textXFor(element)" [attr.y]="element.y + (element.data.fontSize || 24)"
                     [attr.font-size]="element.data.fontSize || 24"
