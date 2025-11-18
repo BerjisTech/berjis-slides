@@ -357,7 +357,8 @@ export class SlidesService {
         strokeWidth: typeof payload.data?.strokeWidth === 'number' ? payload.data.strokeWidth : undefined,
         strokeStyle: ['solid', 'dashed', 'dotted'].includes(payload.data?.strokeStyle)
           ? payload.data.strokeStyle
-          : 'solid'
+          : 'solid',
+        opacity: typeof payload.data?.opacity === 'number' ? payload.data.opacity : 1
       }
     };
   }

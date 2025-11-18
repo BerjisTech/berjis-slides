@@ -314,6 +314,21 @@
           [class.text-white]="shape.data.strokeStyle === 'dotted'"
           (click)="changeShapeStrokeStyle('dotted')">Dotted</button>
       </div>
+      <div class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-200">
+        <label class="text-xs">Opacity</label>
+        <input type="range" class="flex-1"
+          [min]="shapeOpacityRange.min"
+          [max]="shapeOpacityRange.max"
+          [step]="shapeOpacityRange.step"
+          [ngModel]="shape.data.opacity ?? 1"
+          (ngModelChange)="changeShapeOpacity($event)">
+        <input type="number" class="w-16 border border-blue-900/15 dark:border-slate-700 rounded px-2 py-1 bg-white/90 dark:bg-slate-800"
+          [min]="shapeOpacityRange.min"
+          [max]="shapeOpacityRange.max"
+          [step]="shapeOpacityRange.step"
+          [ngModel]="shape.data.opacity ?? 1"
+          (ngModelChange)="changeShapeOpacity($event)">
+      </div>
       <div *ngIf="shape.data.shapeKind === 'rect'" class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-200">
         <label class="text-xs">Corner radius</label>
         <input type="range" class="flex-1"
@@ -349,20 +364,22 @@
             <g *ngFor="let element of slide.elements">
               <ng-container *ngIf="element.type === 'shape'">
                   <ng-container [ngSwitch]="element.data.shapeKind">
-                  <ellipse *ngSwitchCase="'ellipse'"
-                    [attr.cx]="element.x + element.width / 2"
-                    [attr.cy]="element.y + element.height / 2"
-                    [attr.rx]="element.width / 2"
-                    [attr.ry]="element.height / 2"
-                    [attr.fill]="element.data.fill || '#cbd5f5'"
-                    [attr.stroke]="element.data.stroke || 'transparent'"
-                    [attr.stroke-dasharray]="strokeDashArray(element)"
-                    stroke-width="1" />
-                  <polygon *ngSwitchCase="'triangle'"
-                    [attr.points]="trianglePoints(element)"
-                    [attr.fill]="element.data.fill || '#cbd5f5'"
-                    [attr.stroke]="element.data.stroke || 'transparent'"
-                    stroke-width="1" />
+                    <ellipse *ngSwitchCase="'ellipse'"
+                      [attr.cx]="element.x + element.width / 2"
+                      [attr.cy]="element.y + element.height / 2"
+                      [attr.rx]="element.width / 2"
+                      [attr.ry]="element.height / 2"
+                      [attr.fill]="element.data.fill || '#cbd5f5'"
+                      [attr.fill-opacity]="element.data.opacity ?? 1"
+                      [attr.stroke]="element.data.stroke || 'transparent'"
+                      [attr.stroke-dasharray]="strokeDashArray(element)"
+                      stroke-width="1" />
+                    <polygon *ngSwitchCase="'triangle'"
+                      [attr.points]="trianglePoints(element)"
+                      [attr.fill]="element.data.fill || '#cbd5f5'"
+                      [attr.fill-opacity]="element.data.opacity ?? 1"
+                      [attr.stroke]="element.data.stroke || 'transparent'"
+                      stroke-width="1" />
                   <line *ngSwitchCase="'line'"
                     [attr.x1]="element.x"
                     [attr.y1]="element.y"
@@ -428,6 +445,7 @@
                       <polygon *ngSwitchCase="'triangle'"
                         [attr.points]="trianglePoints(element)"
                         [attr.fill]="element.data.fill || '#cbd5f5'"
+                        [attr.fill-opacity]="element.data.opacity ?? 1"
                         [attr.stroke]="selectedElementId === element.id ? '#2563eb' : (element.data.stroke || 'transparent')"
                         [attr.stroke-width]="lineStrokeWidth(element)" />
                       <g *ngSwitchCase="'line'">

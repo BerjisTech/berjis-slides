@@ -97,6 +97,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   readonly strokeStyles: Array<'solid' | 'dashed' | 'dotted'> = ['solid', 'dashed', 'dotted'];
   shapeVariant: 'rectangle' | 'square' | 'ellipse' | 'line' | 'arrow' | 'triangle' = 'rectangle';
   readonly shapeStrokeRange = { min: 1, max: 12, step: 1 };
+  readonly shapeOpacityRange = { min: 0.1, max: 1, step: 0.05 };
   readonly shapePresets: Record<'rectangle' | 'square' | 'ellipse' | 'line' | 'arrow' | 'triangle', { width: number; height: number; kind: 'rect' | 'ellipse' | 'line' | 'arrow' | 'triangle'; radius?: number; strokeWidth?: number }> = {
     rectangle: { width: 260, height: 160, kind: 'rect', radius: 16, strokeWidth: 2 },
     square: { width: 180, height: 180, kind: 'rect', radius: 12, strokeWidth: 2 },
@@ -543,6 +544,20 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     }
     const clamped = Math.max(0, Math.min(300, numeric));
     element.data.radius = clamped;
+    this.queueSave();
+  }
+
+  changeShapeOpacity(value: number | string) {
+    const element = this.selectedShapeElement;
+    if (!element) {
+      return;
+    }
+    const numeric = typeof value === 'string' ? Number(value) : value;
+    if (!Number.isFinite(numeric)) {
+      return;
+    }
+    const clamped = Number(Math.min(this.shapeOpacityRange.max, Math.max(this.shapeOpacityRange.min, numeric)).toFixed(2));
+    element.data.opacity = clamped;
     this.queueSave();
   }
 
