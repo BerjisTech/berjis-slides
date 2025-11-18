@@ -50,8 +50,8 @@ Build a full-featured online presentation editor (like PowerPoint/Google Slides)
 - [x] Line/Arrow tool
 - [x] Fill color picker
 - [x] Border color and width controls
-- [ ] Border style (solid, dashed, dotted)
-- [ ] Corner radius for rectangles
+- [x] Border style (solid, dashed, dotted)
+- [x] Corner radius for rectangles
 - [x] Shape opacity control
 
 ### **Image Elements**
