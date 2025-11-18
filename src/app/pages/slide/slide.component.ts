@@ -421,12 +421,25 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.queueSave();
   }
 
+  changeAlignment(alignment: 'left' | 'center' | 'right' | 'justify') {
+    const element = this.selectedTextElement;
+    if (!element) {
+      return;
+    }
+    element.data.align = alignment;
+    this.queueSave();
+  }
+
   get selectedFontFamily(): string {
     return this.selectedTextElement?.data.fontFamily || this.fontFamilies[0];
   }
 
   get selectedFontSize(): number {
     return this.selectedTextElement?.data.fontSize ?? 28;
+  }
+
+  get selectedAlignment(): 'left' | 'center' | 'right' | 'justify' {
+    return this.selectedTextElement?.data.align ?? 'left';
   }
 
   textDecorationFor(element: SlideElement): string | null {
@@ -691,4 +704,23 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     }
   }
 
+  textAnchorFor(element: SlideElement): 'start' | 'middle' | 'end' {
+    if (element.type !== 'text') return 'start';
+    const align = element.data.align ?? 'left';
+    if (align === 'center') return 'middle';
+    if (align === 'right') return 'end';
+    return 'start';
+  }
+
+  textXFor(element: SlideElement): number {
+    if (element.type !== 'text') return element.x + 12;
+    const align = element.data.align ?? 'left';
+    if (align === 'center') {
+      return element.x + element.width / 2;
+    }
+    if (align === 'right') {
+      return element.x + element.width - 12;
+    }
+    return element.x + 12;
+  }
 }

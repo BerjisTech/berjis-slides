@@ -38,7 +38,7 @@ Build a full-featured online presentation editor (like PowerPoint/Google Slides)
 - [x] Font family selector (10+ common fonts)
 - [x] Font size control (8pt - 96pt)
 - [x] Text color picker with recent colors
-- [ ] Text alignment (left, center, right, justify)
+- [x] Text alignment (left, center, right, justify)
 - [ ] Line height control
 - [ ] Bullet points and numbered lists
 - [ ] Text wrapping within text box boundaries

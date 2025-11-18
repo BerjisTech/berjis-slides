@@ -15,7 +15,7 @@ export interface SlideElement {
     fill?: string;
     stroke?: string;
     radius?: number;
-    align?: 'left' | 'center' | 'right';
+    align?: 'left' | 'center' | 'right' | 'justify';
     fontFamily?: string;
     bold?: boolean;
     italic?: boolean;
@@ -120,7 +120,7 @@ export interface TextElementOptions {
   width: number;
   height: number;
   fontSize: number;
-  align?: 'left' | 'center' | 'right';
+  align?: 'left' | 'center' | 'right' | 'justify';
   fill?: string;
   fontFamily?: string;
   bold?: boolean;

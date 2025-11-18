@@ -108,6 +108,32 @@
           [ngModel]="selectedFontSize"
           (ngModelChange)="changeFontSize($event)">
       </div>
+      <div class="flex items-center gap-1 text-sm">
+        <button type="button" class="px-2 py-1 rounded border border-transparent hover:bg-blue-50 dark:hover:bg-slate-800"
+          [class.bg-blue-600]="selectedAlignment === 'left'"
+          [class.text-white]="selectedAlignment === 'left'"
+          (click)="changeAlignment('left')">
+          <span class="material-symbols-outlined text-base">format_align_left</span>
+        </button>
+        <button type="button" class="px-2 py-1 rounded border border-transparent hover:bg-blue-50 dark:hover:bg-slate-800"
+          [class.bg-blue-600]="selectedAlignment === 'center'"
+          [class.text-white]="selectedAlignment === 'center'"
+          (click)="changeAlignment('center')">
+          <span class="material-symbols-outlined text-base">format_align_center</span>
+        </button>
+        <button type="button" class="px-2 py-1 rounded border border-transparent hover:bg-blue-50 dark:hover:bg-slate-800"
+          [class.bg-blue-600]="selectedAlignment === 'right'"
+          [class.text-white]="selectedAlignment === 'right'"
+          (click)="changeAlignment('right')">
+          <span class="material-symbols-outlined text-base">format_align_right</span>
+        </button>
+        <button type="button" class="px-2 py-1 rounded border border-transparent hover:bg-blue-50 dark:hover:bg-slate-800"
+          [class.bg-blue-600]="selectedAlignment === 'justify'"
+          [class.text-white]="selectedAlignment === 'justify'"
+          (click)="changeAlignment('justify')">
+          <span class="material-symbols-outlined text-base">format_align_justify</span>
+        </button>
+      </div>
       <div class="flex flex-col gap-1 text-xs text-slate-500 dark:text-slate-300">
         <span>Color</span>
         <div class="flex flex-wrap gap-1">
@@ -138,6 +164,7 @@
     <textarea class="w-full min-h-[80px] rounded-2xl border border-blue-900/10 dark:border-slate-800 bg-white/90 dark:bg-slate-900/70 px-4 py-3 text-sm"
       placeholder="Start typing..."
       [ngModel]="textEl.data.text || ''"
+      [style.text-align]="selectedAlignment"
       (ngModelChange)="updateTextContent($event)"></textarea>
   </div>
 
@@ -193,13 +220,14 @@
                     [attr.fill]="element.data.fill || '#cbd5f5'"
                     [attr.stroke]="selectedElementId === element.id ? '#2563eb' : (element.data.stroke || 'transparent')"
                     stroke-width="2" />
-                  <text *ngIf="element.type === 'text'" [attr.x]="element.x + 12" [attr.y]="element.y + (element.data.fontSize || 24)"
+                  <text *ngIf="element.type === 'text'" [attr.x]="textXFor(element)" [attr.y]="element.y + (element.data.fontSize || 24)"
                     [attr.font-size]="element.data.fontSize || 24"
                     [attr.fill]="element.data.fill || '#0f172a'"
                     [attr.font-family]="element.data.fontFamily || 'Inter'"
                     [attr.font-weight]="element.data.bold ? '700' : '400'"
                     [attr.font-style]="element.data.italic ? 'italic' : 'normal'"
-                    [attr.text-decoration]="textDecorationFor(element)">
+                    [attr.text-decoration]="textDecorationFor(element)"
+                    [attr.text-anchor]="textAnchorFor(element)">
                     {{ element.data.text }}
                   </text>
                 </g>
