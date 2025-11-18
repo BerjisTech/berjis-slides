@@ -1,6 +1,6 @@
-<div class="min-h-screen flex flex-col bg-app-gradient bg-app-gradient-animated text-[color:var(--color-text-primary)] dark:text-[color:var(--color-text-dark)]">
+<div class="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-slate-50 to-white dark:from-slate-950 dark:via-slate-900 dark:to-blue-950 text-slate-900 dark:text-slate-100 transition-colors duration-500">
   <button type="button" (click)="toggleTheme()"
-          class="fixed top-4 right-4 z-50 rounded-full p-3 backdrop-blur shadow-brand bg-white/80 text-blue-900 hover:bg-white dark:bg-slate-800/80 dark:text-[color:var(--color-gold)]"
+          class="fixed top-4 right-4 z-50 rounded-full p-3 backdrop-blur shadow-brand bg-white/80 text-blue-900 hover:bg-white dark:bg-slate-800/80 dark:text-amber-300"
           aria-label="Toggle theme">
     <span class="material-symbols-outlined align-middle">{{ isDark ? 'light_mode' : 'dark_mode' }}</span>
   </button>

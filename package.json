@@ -2,9 +2,11 @@
   "name": "berjis-slides-frontend",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "start": "ng serve --host 0.0.0.0 --port 4700",
-    "build": "ng build"
+    "build": "ng build",
+    "lint": "ng lint"
   },
   "dependencies": {
     "@angular/animations": "^18.0.0",
@@ -26,7 +28,16 @@
     "@angular-devkit/build-angular": "^18.0.0",
     "@angular/cli": "^18.0.0",
     "@angular/compiler-cli": "^18.0.0",
+    "@angular-eslint/builder": "^20.5.1",
+    "@angular-eslint/eslint-plugin": "^20.5.1",
+    "@angular-eslint/eslint-plugin-template": "^20.5.1",
+    "@angular-eslint/schematics": "^20.5.1",
+    "@angular-eslint/template-parser": "^20.5.1",
     "@types/node": "^20.12.0",
+    "@typescript-eslint/parser": "^8.11.0",
+    "@typescript-eslint/types": "^8.11.0",
+    "@typescript-eslint/utils": "^8.11.0",
+    "eslint": "^9.15.0",
     "typescript": "~5.4.0"
   }
 }

@@ -1,125 +1,135 @@
 <div class="w-full h-[145px] overflow-visible ps-[30px] p-3 relative z-20">
-  <div class="h-[70px] flex items-center justify-start gap-3">
-    <a href="/" class="h-full w-[70px] bg-blue-400 rounded flex items-center justify-center">Icon</a>
+  <div class="h-[70px] flex items-center justify-start gap-3 rounded-2xl bg-white/90 dark:bg-slate-900/80 shadow-brand px-4 py-3">
+    <a routerLink="/" class="h-full w-[70px] bg-blue-500/90 dark:bg-blue-400/80 text-white rounded flex items-center justify-center font-semibold">Icon</a>
     <div class="flex-grow">
       <div class="flex items-center-safe justify-start gap-2">
-        <input class="text-2xl font-semibold outline-none bg-transparent py-1" placeholder="Untitled document"
+        <input class="text-2xl font-semibold outline-none bg-transparent py-1 text-slate-900 dark:text-slate-50" placeholder="Untitled document"
           [(ngModel)]="deck!.title" (ngModelChange)="onTitleChange()" />
 
-        <div class="flex items-center gap-2 text-xs">
+        <div class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
           <span>start</span>
           <span class="inline-block h-2 w-2 rounded-full" [class.bg-green-500]="svc.syncMode==='remote'"
-            [class.bg-yellow-500]="svc.syncMode==='local'"></span>
+            [class.bg-amber-400]="svc.syncMode==='local'"></span>
           <span>Sync: {{ svc.syncMode === 'remote' ? 'Server' : 'Local' }}</span>
-          <span *ngIf="svc.isSaving" class="text-gray-500">• Saving…</span>
-          <span *ngIf="!svc.isSaving && svc.lastSavedAt" class="text-gray-500">• Saved {{ svc.lastSavedAt |
+          <span *ngIf="svc.isSaving" class="text-gray-500 dark:text-gray-300">• Saving…</span>
+          <span *ngIf="!svc.isSaving && svc.lastSavedAt" class="text-gray-500 dark:text-gray-300">• Saved {{ svc.lastSavedAt |
             date:'shortTime' }}</span>
-          <span *ngIf="svc.lastError" class="text-red-600">• {{ svc.lastError }}</span>
+          <span *ngIf="svc.lastError" class="text-red-600 dark:text-rose-400">• {{ svc.lastError }}</span>
         </div>
       </div>
-      <div class="flex items-center justify-start">
+      <div class="flex items-center justify-start text-slate-700 dark:text-slate-200">
         <span *ngFor="let contextMenu of contextMenus"
-          class="group hover:bg-slate-200 px-3 rounded hover:shadow cursor-pointer relative">
+          class="group hover:bg-slate-200/80 dark:hover:bg-slate-700/70 px-3 rounded hover:shadow cursor-pointer relative">
           {{contextMenu.name}}
           <div
-            class="hidden group-hover:block absolute top-[100%] left-0 rounded shadow bg-white z-[50000] overflow-visible min-w-[200px]">
-            <div *ngFor="let menu of contextMenu.menus" class="p-2 hover:bg-slate-200 cursor-pointer"
+            class="hidden group-hover:block absolute top-[100%] left-0 rounded shadow bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 z-[50000] overflow-visible min-w-[200px]">
+            <div *ngFor="let menu of contextMenu.menus" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
               (click)="onMenu(menu.action); $event.stopPropagation();">{{menu.name}}
             </div>
           </div>
         </span>
       </div>
     </div>
-    <div class="h-full flex items-center justify-end gap-2">
-      <div>History</div>
-      <div>Comment</div>
-      <button class="px-2 py-1 border rounded" (click)="openShare()">Share</button>
+    <div class="h-full flex items-center justify-end gap-2 text-slate-600 dark:text-slate-300">
+      <div class="hidden sm:block">History</div>
+      <div class="hidden sm:block">Comment</div>
+      <button class="px-3 py-1 border border-slate-200 dark:border-slate-600 rounded text-sm font-medium text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 disabled:opacity-50"
+        (click)="openShare()" [disabled]="!canShare">Share</button>
       <div>Ai</div>
       <div>User</div>
     </div>
   </div>
 
-  <div class="flex flex-wrap items-center gap-1 p-2 rounded bg-blue-200 sticky mt-3 top-0 z-10">
-    <button class="px-2 py-1 border rounded" title="Undo">↶</button>
-    <button class="px-2 py-1 border rounded" title="Redo">↷</button>
+  <div class="flex flex-wrap items-center gap-1 p-2 rounded bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 sticky mt-3 top-0 z-10 text-slate-600 dark:text-slate-200">
+    <button class="px-2 py-1 border rounded border-slate-200 dark:border-slate-600" title="Undo">↶</button>
+    <button class="px-2 py-1 border rounded border-slate-200 dark:border-slate-600" title="Redo">↷</button>
   </div>
 
 </div>
 
 <!-- Share Modal -->
-<div *ngIf="shareOpen" class="fixed inset-0 bg-black/30 flex items-center justify-center z-[60000]">
-  <div class="bg-white rounded shadow w-[520px] p-4">
+<div *ngIf="shareOpen" class="fixed inset-0 bg-black/40 dark:bg-black/60 flex items-center justify-center z-[60000] p-4">
+  <div class="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-[520px] p-5 text-slate-900 dark:text-slate-100">
     <div class="flex items-center justify-between mb-2">
       <div class="text-lg font-semibold">Share Presentation</div>
-      <button class="px-2 py-1 border rounded" (click)="shareOpen=false">Close</button>
+      <button class="px-2 py-1 border border-slate-200 dark:border-slate-600 rounded" (click)="shareOpen=false">Close</button>
     </div>
-    <div class="flex gap-2">
-      <input class="flex-1 border rounded px-2 py-1 text-sm" placeholder="User ID (UUID)" [(ngModel)]="shareUserId" />
-      <select class="border rounded px-2 py-1 text-sm" [(ngModel)]="shareRole">
-        <option value="viewer">Viewer</option>
-        <option value="commenter">Commenter</option>
-        <option value="editor">Editor</option>
-      </select>
-      <button class="rounded bg-blue-600 text-white px-3 py-1 text-sm" (click)="addCollaborator()">Add</button>
-    </div>
-    <div class="mt-3 max-h-[240px] overflow-y-auto rounded border">
-      <div *ngFor="let r of shareRows" class="flex items-center justify-between border-b px-3 py-2 text-sm">
-        <div>
-          <div class="font-medium">{{ r.userId }}</div>
-          <div class="text-xs text-slate-500">{{ r.role | titlecase }}</div>
-        </div>
-        <button class="rounded border px-2 py-1 text-xs" (click)="removeCollaborator(r.userId)">Remove</button>
+    <ng-container *ngIf="canShare; else shareNeedsSave">
+      <div class="flex flex-col gap-2 sm:flex-row">
+        <input class="flex-1 border border-slate-200 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-800" placeholder="User ID (UUID)" [(ngModel)]="shareUserId" [disabled]="shareLoading" />
+        <select class="border border-slate-200 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-800" [(ngModel)]="shareRole" [disabled]="shareLoading">
+          <option value="viewer">Viewer</option>
+          <option value="commenter">Commenter</option>
+          <option value="editor">Editor</option>
+        </select>
+        <button class="rounded bg-blue-600 text-white px-3 py-1 text-sm disabled:opacity-50" (click)="addCollaborator()" [disabled]="shareLoading">Add</button>
       </div>
-      <div *ngIf="!shareRows.length" class="px-3 py-2 text-xs text-slate-500">No collaborators yet.</div>
-    </div>
+      <div class="mt-3 max-h-[240px] overflow-y-auto rounded border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-800">
+        <div *ngFor="let r of shareRows" class="flex items-center justify-between px-3 py-2 text-sm">
+          <div>
+            <div class="font-medium">{{ r.userId }}</div>
+            <div class="text-xs text-slate-500">{{ r.role | titlecase }} • Added {{ r.createdAt | date:'medium' }}</div>
+            <div *ngIf="r.invitedBy" class="text-xs text-slate-400">Invited by {{ r.invitedBy }}</div>
+          </div>
+          <button class="rounded border border-slate-200 dark:border-slate-600 px-2 py-1 text-xs" (click)="removeCollaborator(r.userId)" [disabled]="shareLoading">Remove</button>
+        </div>
+        <div *ngIf="!shareRows.length" class="px-3 py-2 text-xs text-slate-500">No collaborators yet.</div>
+      </div>
+      <div *ngIf="shareLoading" class="mt-2 text-xs text-slate-500">Syncing collaborators…</div>
+    </ng-container>
+    <ng-template #shareNeedsSave>
+      <p class="mt-2 text-sm text-slate-500">Save your presentation to invite collaborators.</p>
+    </ng-template>
+    <div *ngIf="shareError" class="mt-2 text-sm text-red-600">{{ shareError }}</div>
   </div>
 </div>
 
 <div #editorMainPane class="p-4 grid grid-cols-4 gap-4" [style.zoom]="zoom">
-  <div class="col-span-1 space-y-2">
-    <div class="text-sm font-medium text-gray-600">Slides</div>
-    <div *ngFor="let s of slides; let i = index" class="border rounded p-2 cursor-pointer bg-white">
-      <div class="text-xs text-gray-500">Slide {{ i+1 }}</div>
+  <div class="col-span-1 space-y-2 text-slate-700 dark:text-slate-200">
+    <div class="text-sm font-medium">Slides</div>
+    <div *ngFor="let s of slides; let i = index" class="border border-slate-200 dark:border-slate-700 rounded p-2 cursor-pointer bg-white/90 dark:bg-slate-900/40">
+      <div class="text-xs text-gray-500 dark:text-slate-400">Slide {{ i+1 }}</div>
       <div class="truncate">{{ s.text || 'Empty' }}</div>
     </div>
-    <button class="mt-2 text-sm px-2 py-1 rounded bg-blue-600 text-white" (click)="addSlide()">Add slide</button>
+    <button class="mt-2 text-sm px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-500" (click)="addSlide()">Add slide</button>
   </div>
   <div class="col-span-3">
-    <div class="border rounded p-4 bg-slate-50 min-h-[400px]">
-      <textarea class="w-full h-[360px] border rounded p-2" placeholder="Type your slide content here"
+    <div class="border border-slate-200 dark:border-slate-700 rounded-2xl p-4 bg-slate-50/80 dark:bg-slate-900/60 min-h-[400px]">
+      <textarea class="w-full h-[360px] border border-slate-200 dark:border-slate-700 rounded-lg p-3 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100"
+        placeholder="Type your slide content here"
         [ngModel]="slides[0]?.text" (ngModelChange)="onSlideChange(0, $event)"></textarea>
     </div>
   </div>
 </div>
 
 <!-- Open Modal -->
-<div *ngIf="openModal" class="fixed inset-0 bg-black/30 flex items-center justify-center z-[60000]">
-  <div class="bg-white rounded shadow w-[900px] max-w-[90vw] p-5">
+<div *ngIf="openModal" class="fixed inset-0 bg-black/40 dark:bg-black/60 flex items-center justify-center z-[60000] p-4">
+  <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-[900px] max-w-[90vw] p-6 text-slate-900 dark:text-slate-100">
     <div class="flex items-center justify-between mb-3">
       <div class="text-lg font-semibold">Open Presentation</div>
-      <button class="px-2 py-1 border rounded" (click)="cancelOpen()">Close</button>
+      <button class="px-2 py-1 border border-slate-200 dark:border-slate-600 rounded" (click)="cancelOpen()">Close</button>
     </div>
-    <input class="w-full border rounded px-3 py-2 mb-4" [(ngModel)]="openQuery" (ngModelChange)="onOpenQueryChange()"
+    <input class="w-full border border-slate-200 dark:border-slate-700 rounded px-3 py-2 mb-4 bg-white dark:bg-slate-800" [(ngModel)]="openQuery" (ngModelChange)="onOpenQueryChange()"
       placeholder="Search by title or content" />
     <div class="grid grid-cols-5 auto-rows-[220px] gap-3">
-      <a (click)="openDeck(d)" *ngFor="let d of openFiltered" class="shadow rounded bg-slate-50 flex flex-col p-2 cursor-pointer hover:shadow-xl">
-        <div class="font-medium truncate">{{ d.title || 'Untitled' }}</div>
-        <div class="text-xs text-gray-500 mt-1">{{ d.updatedAt | date:'medium' }}</div>
+      <a (click)="openDeck(d)" *ngFor="let d of openFiltered" class="shadow rounded bg-white/95 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 flex flex-col p-2 cursor-pointer hover:shadow-xl">
+        <div class="font-medium truncate text-slate-900 dark:text-slate-50">{{ d.title || 'Untitled' }}</div>
+        <div class="text-xs text-gray-500 dark:text-slate-400 mt-1">{{ d.updatedAt | date:'medium' }}</div>
         <div class="flex-grow"></div>
-        <div class="text-blue-600 text-sm">Open</div>
+        <div class="text-blue-600 dark:text-blue-300 text-sm">Open</div>
       </a>
     </div>
   </div>
 </div>
 
 <!-- Rename Modal -->
-<div *ngIf="renameModal" class="fixed inset-0 bg-black/30 flex items-center justify-center z-[60000]">
-  <div class="bg-white rounded shadow w-[520px] p-4">
+<div *ngIf="renameModal" class="fixed inset-0 bg-black/40 dark:bg-black/60 flex items-center justify-center z-[60000] p-4">
+  <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-[520px] max-w-[90vw] p-5 text-slate-900 dark:text-slate-100">
     <div class="text-lg font-semibold mb-2">Rename Presentation</div>
-    <label class="text-sm text-gray-600">Title</label>
-    <input class="w-full border rounded px-2 py-1 mt-1" [(ngModel)]="renameTitle" placeholder="Untitled presentation" />
+    <label class="text-sm text-gray-600 dark:text-slate-300">Title</label>
+    <input class="w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1 mt-1 bg-white dark:bg-slate-800" [(ngModel)]="renameTitle" placeholder="Untitled presentation" />
     <div class="flex items-center justify-end gap-2 mt-3">
-      <button class="px-3 py-1 border rounded" (click)="cancelRename()">Cancel</button>
+      <button class="px-3 py-1 border border-slate-200 dark:border-slate-700 rounded" (click)="cancelRename()">Cancel</button>
       <button class="px-3 py-1 bg-blue-600 text-white rounded" (click)="confirmRename()">Save</button>
     </div>
   </div>

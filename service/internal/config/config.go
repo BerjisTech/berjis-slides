@@ -25,6 +25,6 @@ func Load() Config {
 		Port:           getenv("PORT", "8085"),
 		DatabaseURL:    getenv("DATABASE_URL", "postgres://postgres:postgres@localhost:5438/berjis_slides?sslmode=disable"),
 		CoreAPIBase:    getenv("CORE_API_BASE", "http://localhost:8080"),
-		AllowedOrigins: getenv("ALLOWED_ORIGINS", "*"),
+		AllowedOrigins: getenv("ALLOWED_ORIGINS", "https://berjis.tech,https://*.berjis.tech"),
 	}
 }

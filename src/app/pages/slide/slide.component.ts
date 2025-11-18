@@ -2,12 +2,12 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { SlidesService, SlideDoc, defaultSlides } from '../../slides.service';
+import { SlidesService, SlideDoc, SlideCollaborator, defaultSlides } from '../../slides.service';
 
 @Component({
   standalone: true,
   selector: 'app-slide',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './slide.component.html'
 })
 export class SlidePageComponent implements OnInit {
@@ -22,9 +22,11 @@ export class SlidePageComponent implements OnInit {
   openFiltered: SlideDoc[] = [];
   // Share modal
   shareOpen = false;
-  shareRows: { userId: string; role: 'viewer'|'commenter'|'editor' }[] = [];
+  shareRows: SlideCollaborator[] = [];
   shareUserId = '';
   shareRole: 'viewer'|'commenter'|'editor' = 'viewer';
+  shareLoading = false;
+  shareError: string | null = null;
   contextMenus: { name: string, menus: { icon: string, name: string, action: string }[] }[] = [
     { name: 'File', menus: [
       { icon: '', name: 'New', action: 'new' },
@@ -107,11 +109,70 @@ export class SlidePageComponent implements OnInit {
   }
 
   // Share
-  openShare(){ this.shareOpen = true; this.loadCollaborators(); }
-  private get id(): string | null { return this.deck?.id ?? null; }
-  async loadCollaborators(){ const id=this.id; if(!id){ this.shareRows=[]; return; } try { const res=await fetch(`/v1/slides/${encodeURIComponent(id)}/collaborators`, { credentials:'include' }); const j=await res.json(); const rows=(j?.data||[]) as any[]; this.shareRows = rows.map(r => ({ userId: r.userId||r.user_id, role: (r.role||'viewer') })); } catch { this.shareRows=[]; } }
-  async addCollaborator(){ const id=this.id; if(!id) return; const userId=this.shareUserId.trim(); if(!userId) return; const role=this.shareRole; await fetch(`/v1/slides/${encodeURIComponent(id)}/collaborators`, { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ userId, role }) }); this.shareUserId=''; await this.loadCollaborators(); }
-  async removeCollaborator(uid:string){ const id=this.id; if(!id) return; await fetch(`/v1/slides/${encodeURIComponent(id)}/collaborators?user_id=${encodeURIComponent(uid)}`, { method:'DELETE', credentials:'include' }); await this.loadCollaborators(); }
+  openShare(){
+    this.shareOpen = true;
+    this.shareError = null;
+    if (!this.canShare) {
+      this.shareRows = [];
+      this.shareError = 'Save your presentation to invite collaborators.';
+      return;
+    }
+    void this.loadCollaborators();
+  }
+  private get deckId(): string | null { return this.deck?.id ?? null; }
+  get canShare(): boolean { return !!this.deck && this.deck.id !== 'new'; }
+  async loadCollaborators(){
+    if (!this.canShare) {
+      this.shareRows = [];
+      return;
+    }
+    this.shareLoading = true;
+    this.shareError = null;
+    try {
+      this.shareRows = await this.svc.listCollaborators(this.deckId!);
+    } catch (err) {
+      this.shareError = err instanceof Error ? err.message : 'Unable to load collaborators.';
+    } finally {
+      this.shareLoading = false;
+    }
+  }
+  async addCollaborator(){
+    if (!this.canShare) {
+      this.shareError = 'Save your presentation to invite collaborators.';
+      return;
+    }
+    const userId = this.shareUserId.trim();
+    if (!userId) {
+      this.shareError = 'Enter a collaborator user ID.';
+      return;
+    }
+    this.shareLoading = true;
+    this.shareError = null;
+    try {
+      await this.svc.addCollaborator(this.deckId!, userId, this.shareRole);
+      this.shareUserId = '';
+      await this.loadCollaborators();
+    } catch (err) {
+      this.shareError = err instanceof Error ? err.message : 'Unable to add collaborator.';
+    } finally {
+      this.shareLoading = false;
+    }
+  }
+  async removeCollaborator(uid:string){
+    if (!this.canShare) {
+      return;
+    }
+    this.shareLoading = true;
+    this.shareError = null;
+    try {
+      await this.svc.removeCollaborator(this.deckId!, uid);
+      await this.loadCollaborators();
+    } catch (err) {
+      this.shareError = err instanceof Error ? err.message : 'Unable to remove collaborator.';
+    } finally {
+      this.shareLoading = false;
+    }
+  }
   private downloadDeck(){
     const name = ((this.deck?.title)||'presentation').replace(/\s+/g,'-').slice(0,80);
     const blob = new Blob([JSON.stringify({ title: this.deck?.title||'', slides: this.slides }, null, 2)], { type: 'application/json' });

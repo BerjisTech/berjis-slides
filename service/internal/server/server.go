@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -43,20 +44,20 @@ func New(opts Options) *fiber.App {
 			authVerifier = v
 		}
 	}
-	// CORS reflect for berjis.tech w/ credentials
+	corsPolicy := newOriginPolicy(strings.TrimSpace(opts.AllowedOrigins))
 	app.Use(func(c *fiber.Ctx) error {
 		origin := c.Get("Origin")
-		if origin != "" {
-			if origin == "https://berjis.tech" || strings.HasSuffix(origin, ".berjis.tech") {
-				c.Set("Access-Control-Allow-Origin", origin)
-				c.Set("Vary", "Origin")
-				c.Set("Access-Control-Allow-Credentials", "true")
-				c.Set("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
-				c.Set("Access-Control-Allow-Headers", "Authorization,Content-Type,Accept")
-				if c.Method() == fiber.MethodOptions {
-					return c.SendStatus(fiber.StatusNoContent)
-				}
+		if origin != "" && corsPolicy.Allows(origin) {
+			c.Set("Access-Control-Allow-Origin", origin)
+			c.Set("Vary", "Origin")
+			c.Set("Access-Control-Allow-Credentials", "true")
+			c.Set("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
+			c.Set("Access-Control-Allow-Headers", "Authorization,Content-Type,Accept")
+			if c.Method() == fiber.MethodOptions {
+				return c.SendStatus(fiber.StatusNoContent)
 			}
+		} else if c.Method() == fiber.MethodOptions {
+			return c.SendStatus(fiber.StatusNoContent)
 		}
 		return c.Next()
 	})
@@ -362,6 +363,112 @@ func New(opts Options) *fiber.App {
 	})
 
 	return app
+}
+
+type originPolicy struct {
+	allowAll   bool
+	exact      map[string]struct{}
+	hostExact  map[string]struct{}
+	hostSuffix []string
+}
+
+func newOriginPolicy(raw string) originPolicy {
+	policy := originPolicy{
+		exact:     make(map[string]struct{}),
+		hostExact: make(map[string]struct{}),
+	}
+	tokens := splitOrigins(raw)
+	if len(tokens) == 0 {
+		tokens = []string{"https://berjis.tech", "*.berjis.tech"}
+	}
+	for _, token := range tokens {
+		value := strings.TrimSpace(token)
+		if value == "" {
+			continue
+		}
+		if value == "*" {
+			policy.allowAll = true
+			continue
+		}
+		lower := strings.ToLower(value)
+		if strings.HasPrefix(lower, "*.") {
+			policy.hostSuffix = append(policy.hostSuffix, strings.TrimPrefix(lower, "*."))
+			continue
+		}
+		if strings.Contains(lower, "://") {
+			if strings.Contains(lower, "*") {
+				if u, err := url.Parse(lower); err == nil {
+					host := strings.ToLower(u.Hostname())
+					if strings.HasPrefix(host, "*.") {
+						policy.hostSuffix = append(policy.hostSuffix, strings.TrimPrefix(host, "*."))
+						continue
+					}
+					if host != "" {
+						policy.hostExact[host] = struct{}{}
+					}
+				}
+				continue
+			}
+			policy.exact[lower] = struct{}{}
+			if u, err := url.Parse(lower); err == nil {
+				host := strings.ToLower(u.Hostname())
+				if host != "" {
+					policy.hostExact[host] = struct{}{}
+				}
+			}
+			continue
+		}
+		hostOnly := strings.ToLower(value)
+		if idx := strings.Index(hostOnly, ":"); idx > -1 {
+			hostOnly = hostOnly[:idx]
+		}
+		if hostOnly != "" {
+			policy.hostExact[hostOnly] = struct{}{}
+		}
+	}
+	return policy
+}
+
+func splitOrigins(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	return strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == ' ' || r == '\n' || r == '\t'
+	})
+}
+
+func (p originPolicy) Allows(origin string) bool {
+	if origin == "" {
+		return false
+	}
+	if p.allowAll {
+		return true
+	}
+	lower := strings.ToLower(origin)
+	if _, ok := p.exact[lower]; ok {
+		return true
+	}
+	host := hostFromOrigin(origin)
+	if _, ok := p.hostExact[host]; ok {
+		return true
+	}
+	for _, suffix := range p.hostSuffix {
+		if strings.HasSuffix(host, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+func hostFromOrigin(origin string) string {
+	if u, err := url.Parse(origin); err == nil {
+		host := u.Hostname()
+		if host != "" {
+			return strings.ToLower(host)
+		}
+	}
+	return strings.ToLower(origin)
 }
 
 func optStr(p *string) string {

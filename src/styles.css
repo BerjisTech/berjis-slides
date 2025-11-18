@@ -7,10 +7,26 @@
 
 @theme {
   --color-bg-light-start: #eff6ff; --color-bg-light-end: #f8fafc;
-  --color-text-primary: #0f172a; --color-text-accent: #1e3a8a; --color-link: #60a5fa;
+  --color-text-primary: #0f172a; --color-text-accent: #1e3a8a; --color-link: #3b82f6;
   --color-shadow-light: rgba(30,64,175,0.15);
-  --color-bg-dark-start: #0f172a; --color-bg-dark-end: #1e3a8a; --color-text-dark: #f8fafc;
+  --color-bg-dark-start: #020617; --color-bg-dark-end: #0f172a; --color-text-dark: #f8fafc;
   --color-gold: #f5c542; --color-shadow-dark: rgba(2,6,23,0.6);
+}
+
+:root {
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-light-start);
+}
+
+html.dark {
+  color: var(--color-text-dark);
+  background-color: var(--color-bg-dark-start);
+}
+
+html, body {
+  min-height: 100%;
+  background-color: inherit;
+  color: inherit;
 }
 
 a { @apply text-blue-400 hover:text-blue-500 underline-offset-4 decoration-blue-300 hover:decoration-blue-500; }
