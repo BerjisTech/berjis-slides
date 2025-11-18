@@ -23,6 +23,7 @@ export interface SlideElement {
     strikethrough?: boolean;
     lineHeight?: number;
     bulletStyle?: 'none' | 'bullet' | 'number';
+    shapeKind?: 'rect' | 'ellipse';
   };
 }
 
@@ -107,6 +108,7 @@ export interface ShapeElementOptions {
   fill?: string;
   stroke?: string;
   radius?: number;
+  shapeKind?: 'rect' | 'ellipse';
 }
 
 export function createShapeElement(opts: ShapeElementOptions): SlideElement {
@@ -122,6 +124,7 @@ export function createShapeElement(opts: ShapeElementOptions): SlideElement {
       fill: opts.fill ?? '#cbd5f5',
       stroke: opts.stroke ?? '#1d4ed8',
       radius: opts.radius ?? 12,
+      shapeKind: opts.shapeKind ?? 'rect',
     },
   };
 }

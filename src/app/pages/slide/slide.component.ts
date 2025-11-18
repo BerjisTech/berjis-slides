@@ -90,10 +90,11 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   recentTextColors: string[] = [];
   readonly lineHeightRange = { min: 0.8, max: 2.5, step: 0.1 };
   readonly bulletStyles: ('none' | 'bullet' | 'number')[] = ['none', 'bullet', 'number'];
-  shapeVariant: 'rectangle' | 'square' = 'rectangle';
-  readonly shapePresets: Record<'rectangle' | 'square', { width: number; height: number }> = {
-    rectangle: { width: 260, height: 160 },
-    square: { width: 180, height: 180 }
+  shapeVariant: 'rectangle' | 'square' | 'ellipse' = 'rectangle';
+  readonly shapePresets: Record<'rectangle' | 'square' | 'ellipse', { width: number; height: number; kind: 'rect' | 'ellipse'; radius?: number }> = {
+    rectangle: { width: 260, height: 160, kind: 'rect', radius: 16 },
+    square: { width: 180, height: 180, kind: 'rect', radius: 12 },
+    ellipse: { width: 240, height: 160, kind: 'ellipse' }
   };
 
   contextMenus: { name: string; menus: { name: string; action: string }[] }[] = [
@@ -213,7 +214,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.insertMode = this.insertMode === mode ? null : mode;
   }
 
-  toggleShapeInsert(kind: 'rectangle' | 'square') {
+  toggleShapeInsert(kind: 'rectangle' | 'square' | 'ellipse') {
     if (this.insertMode === 'shape' && this.shapeVariant === kind) {
       this.insertMode = null;
       return;
@@ -414,7 +415,9 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       x: elementX,
       y: elementY,
       width,
-      height
+      height,
+      radius: preset.kind === 'rect' ? preset.radius : undefined,
+      shapeKind: preset.kind
     });
     slide.elements.push(element);
     this.selectedElementId = element.id;
@@ -516,6 +519,17 @@ export class SlidePageComponent implements OnInit, OnDestroy {
 
   get selectedBulletStyle(): 'none' | 'bullet' | 'number' {
     return this.selectedTextElement?.data.bulletStyle ?? 'none';
+  }
+
+  get shapeVariantLabel(): string {
+    switch (this.shapeVariant) {
+      case 'square':
+        return 'Square';
+      case 'ellipse':
+        return 'Ellipse';
+      default:
+        return 'Rectangle';
+    }
   }
 
   textDecorationFor(element: SlideElement): string | null {
