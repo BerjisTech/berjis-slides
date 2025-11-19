@@ -387,6 +387,76 @@
       <button type="button" class="px-3 py-1 rounded border border-blue-900/15 dark:border-slate-600 bg-white/90 dark:bg-slate-800 text-sm"
         (click)="resetImageSize()">Reset size</button>
     </div>
+    <div class="flex flex-wrap gap-4 bg-white/90 dark:bg-slate-900/70 border border-blue-900/10 dark:border-slate-800 rounded-2xl px-4 py-3 shadow-sm">
+      <div class="flex-1 min-w-[240px] flex flex-col gap-1 text-xs text-slate-500 dark:text-slate-300">
+        <span>Border color</span>
+        <div class="flex flex-wrap gap-1">
+          <button type="button"
+            *ngFor="let color of defaultTextColors"
+            class="w-7 h-7 rounded-full border border-white/70 shadow ring-offset-1"
+            [style.background]="color"
+            [class.ring-2]="(imageEl.data.stroke || '#1d4ed8').toLowerCase() === color.toLowerCase()"
+            (click)="changeImageBorderColor(color)">
+          </button>
+          <input type="color"
+            class="w-8 h-7 rounded-full border border-blue-900/20 dark:border-slate-600 cursor-pointer bg-transparent p-0"
+            [ngModel]="imageEl.data.stroke || '#1d4ed8'"
+            (ngModelChange)="changeImageBorderColor($event)" />
+        </div>
+        <div *ngIf="recentStrokeColors.length" class="flex items-center flex-wrap gap-1">
+          <span class="mr-1">Recent:</span>
+          <button type="button"
+            *ngFor="let color of recentStrokeColors"
+            class="w-6 h-6 rounded-full border border-white/70 shadow ring-offset-1"
+            [style.background]="color"
+            [class.ring-2]="(imageEl.data.stroke || '#1d4ed8').toLowerCase() === color.toLowerCase()"
+            (click)="changeImageBorderColor(color)">
+          </button>
+        </div>
+      </div>
+      <div class="flex flex-col gap-2 flex-1 min-w-[220px] text-sm text-slate-600 dark:text-slate-200">
+        <label class="text-xs">Border width</label>
+        <div class="flex items-center gap-2">
+          <input type="range" class="flex-1"
+            [min]="imageBorderRange.min"
+            [max]="imageBorderRange.max"
+            [step]="imageBorderRange.step"
+            [ngModel]="imageBorderWidthValue(imageEl)"
+            (ngModelChange)="changeImageBorderWidth($event)">
+          <input type="number" class="w-16 border border-blue-900/15 dark:border-slate-700 rounded px-2 py-1 bg-white/90 dark:bg-slate-800"
+            [min]="imageBorderRange.min"
+            [max]="imageBorderRange.max"
+            [step]="imageBorderRange.step"
+            [ngModel]="imageBorderWidthValue(imageEl)"
+            (ngModelChange)="changeImageBorderWidth($event)">
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 text-sm text-slate-600 dark:text-slate-200">
+        <label class="text-xs">Border style</label>
+        <button type="button"
+          class="px-2 py-1 rounded border border-transparent hover:bg-blue-50 dark:hover:bg-slate-800"
+          [class.bg-blue-600]="imageEl.data.strokeStyle === 'solid' || !imageEl.data.strokeStyle"
+          [class.text-white]="imageEl.data.strokeStyle === 'solid' || !imageEl.data.strokeStyle"
+          [disabled]="imageBorderWidthValue(imageEl) === 0"
+          (click)="changeImageBorderStyle('solid')">Solid</button>
+        <button type="button"
+          class="px-2 py-1 rounded border border-transparent hover:bg-blue-50 dark:hover:bg-slate-800"
+          [class.bg-blue-600]="imageEl.data.strokeStyle === 'dashed'"
+          [class.text-white]="imageEl.data.strokeStyle === 'dashed'"
+          [disabled]="imageBorderWidthValue(imageEl) === 0"
+          (click)="changeImageBorderStyle('dashed')">Dashed</button>
+        <button type="button"
+          class="px-2 py-1 rounded border border-transparent hover:bg-blue-50 dark:hover:bg-slate-800"
+          [class.bg-blue-600]="imageEl.data.strokeStyle === 'dotted'"
+          [class.text-white]="imageEl.data.strokeStyle === 'dotted'"
+          [disabled]="imageBorderWidthValue(imageEl) === 0"
+          (click)="changeImageBorderStyle('dotted')">Dotted</button>
+        <button type="button"
+          class="px-2 py-1 rounded border border-blue-900/15 dark:border-slate-600 bg-white/95 dark:bg-slate-800 ml-2"
+          [disabled]="!imageHasBorder(imageEl)"
+          (click)="clearImageBorder()">Remove border</button>
+      </div>
+    </div>
     <div class="flex flex-wrap items-center gap-3 bg-white/90 dark:bg-slate-900/70 border border-blue-900/10 dark:border-slate-800 rounded-2xl px-4 py-3 shadow-sm">
       <div class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-200 w-full">
         <label class="text-xs">Zoom</label>
@@ -566,6 +636,16 @@
                       [attr.href]="element.data.assetUrl"
                       [attr.xlink:href]="element.data.assetUrl"></image>
                   </g>
+                  <rect
+                    *ngIf="imageHasBorder(element)"
+                    [attr.x]="element.x"
+                    [attr.y]="element.y"
+                    [attr.width]="element.width"
+                    [attr.height]="element.height"
+                    fill="transparent"
+                    [attr.stroke]="element.data.stroke || '#1d4ed8'"
+                    [attr.stroke-width]="imageBorderWidthValue(element)"
+                    [attr.stroke-dasharray]="strokeDashArray(element)"></rect>
                 </ng-container>
               </ng-container>
             </g>
@@ -681,6 +761,16 @@
                           [attr.href]="element.data.assetUrl"
                           [attr.xlink:href]="element.data.assetUrl"></image>
                       </g>
+                      <rect
+                        *ngIf="imageHasBorder(element)"
+                        [attr.x]="element.x"
+                        [attr.y]="element.y"
+                        [attr.width]="element.width"
+                        [attr.height]="element.height"
+                        fill="transparent"
+                        [attr.stroke]="element.data.stroke || '#1d4ed8'"
+                        [attr.stroke-width]="imageBorderWidthValue(element)"
+                        [attr.stroke-dasharray]="strokeDashArray(element)"></rect>
                       <ng-container *ngIf="selectedElementId === element.id">
                         <rect
                           [attr.x]="element.x"

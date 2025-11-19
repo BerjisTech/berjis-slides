@@ -117,6 +117,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   readonly imageResizeHandles: ResizeHandle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
   readonly resizeHandleSize = 12;
   readonly imageSizeRange = { min: 40, max: 1600 };
+  readonly imageBorderRange = { min: 0, max: 20, step: 1 };
   readonly imageCropZoomRange = { min: 1, max: 4, step: 0.05 };
   readonly imageCropOffsetRange = { min: -100, max: 100, step: 1 };
   readonly imageFilterRange = { min: 0.2, max: 2, step: 0.05 };
@@ -1000,6 +1001,46 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.queueSave();
   }
 
+  changeImageBorderColor(color: string) {
+    const element = this.selectedImageElement;
+    if (!element || !color) return;
+    element.data.stroke = color;
+    if ((element.data.strokeWidth ?? 0) <= 0) {
+      element.data.strokeWidth = 2;
+    }
+    this.pushStrokeColor(color);
+    this.queueSave();
+  }
+
+  changeImageBorderWidth(value: number | string) {
+    const element = this.selectedImageElement;
+    if (!element) return;
+    const numeric = typeof value === 'string' ? Number(value) : value;
+    if (!Number.isFinite(numeric)) return;
+    const clamped = this.clamp(Math.round(numeric), this.imageBorderRange.min, this.imageBorderRange.max);
+    element.data.strokeWidth = clamped;
+    if (clamped > 0 && !element.data.stroke) {
+      element.data.stroke = '#1d4ed8';
+    }
+    this.queueSave();
+  }
+
+  changeImageBorderStyle(style: 'solid' | 'dashed' | 'dotted') {
+    const element = this.selectedImageElement;
+    if (!element) return;
+    element.data.strokeStyle = style;
+    this.queueSave();
+  }
+
+  clearImageBorder() {
+    const element = this.selectedImageElement;
+    if (!element) return;
+    element.data.stroke = undefined;
+    element.data.strokeWidth = 0;
+    element.data.strokeStyle = 'solid';
+    this.queueSave();
+  }
+
   changeImageCropZoom(value: number | string) {
     const element = this.selectedImageElement;
     if (!element) return;
@@ -1148,6 +1189,21 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     }
     const value = axis === 'x' ? element.data.cropOffsetX ?? 0 : element.data.cropOffsetY ?? 0;
     return Math.round(value * 100);
+  }
+
+  imageBorderWidthValue(element: SlideElement): number {
+    if (element.type !== 'image') {
+      return 0;
+    }
+    const width = typeof element.data.strokeWidth === 'number' ? element.data.strokeWidth : 0;
+    return this.clamp(width, this.imageBorderRange.min, this.imageBorderRange.max);
+  }
+
+  imageHasBorder(element: SlideElement): boolean {
+    if (element.type !== 'image') {
+      return false;
+    }
+    return (element.data.strokeWidth ?? 0) > 0 && !!element.data.stroke;
   }
 
   imageFilterValue(element: SlideElement, kind: 'brightness' | 'contrast' | 'saturation'): number {
