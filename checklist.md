@@ -65,16 +65,16 @@ Build a full-featured online presentation editor (like PowerPoint/Google Slides)
 - [x] Replace image while maintaining position/size
 
 ### **Element Manipulation**
-- [ ] Select single element (click)
-- [ ] Multi-select (Ctrl+click or drag selection box)
-- [ ] Resize handles (8 direction resize)
-- [ ] Maintain aspect ratio (Shift+drag)
-- [ ] Rotation handle
-- [ ] Move elements via drag or arrow keys
-- [ ] Copy/Paste elements (Ctrl+C/V)
-- [ ] Duplicate element (Ctrl+D)
-- [ ] Delete element (Del/Backspace)
-- [ ] Undo/Redo stack (Ctrl+Z/Y) - minimum 50 actions
+- [x] Select single element (click)
+- [x] Multi-select (Ctrl+click or drag selection box)
+- [x] Resize handles (8 direction resize)
+- [x] Maintain aspect ratio (Shift+drag)
+- [x] Rotation handle
+- [x] Move elements via drag or arrow keys
+- [x] Copy/Paste elements (Ctrl+C/V)
+- [x] Duplicate element (Ctrl+D)
+- [x] Delete element (Del/Backspace)
+- [x] Undo/Redo stack (Ctrl+Z/Y) - minimum 50 actions
 
 ### **Layering & Arrangement**
 - [ ] Bring to front

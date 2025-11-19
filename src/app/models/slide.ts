@@ -103,11 +103,7 @@ export function cloneSlide(slide: SlideModel): SlideModel {
   return {
     ...slide,
     id: createId('slide'),
-    elements: slide.elements.map(elem => ({
-      ...elem,
-      id: createId('el'),
-      data: { ...elem.data }
-    }))
+    elements: slide.elements.map(elem => cloneElement(elem))
   };
 }
 
@@ -226,5 +222,13 @@ export function createImageElement(opts: ImageElementOptions): SlideElement {
       contrast: 1,
       saturation: 1
     }
+  };
+}
+
+export function cloneElement(element: SlideElement): SlideElement {
+  return {
+    ...element,
+    id: createId('el'),
+    data: { ...element.data }
   };
 }

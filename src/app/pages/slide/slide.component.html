@@ -688,120 +688,148 @@
               <div class="absolute inset-0 pointer-events-none">
                 <div *ngIf="alignmentGuides.vertical !== null" class="absolute top-0 bottom-0 w-0.5 bg-blue-500/60" [style.left.px]="alignmentGuides.vertical"></div>
                 <div *ngIf="alignmentGuides.horizontal !== null" class="absolute left-0 right-0 h-0.5 bg-blue-500/60" [style.top.px]="alignmentGuides.horizontal"></div>
+                <div *ngIf="marqueeRectStyle as marqueeBox"
+                  class="absolute border-2 border-blue-400/70 bg-blue-400/10 rounded pointer-events-none"
+                  [ngStyle]="marqueeBox"></div>
               </div>
               <svg [attr.viewBox]="'0 0 ' + canvasWidth + ' ' + canvasHeight" class="relative z-10 w-full h-full">
                 <g *ngFor="let element of activeSlide?.elements"
                   (pointerdown)="onElementPointerDown($event, element)"
                   class="cursor-move"
-                  [attr.transform]="element.type === 'image' ? imageTransform(element) : null">
-                  <ng-container *ngIf="element.type === 'shape'">
-                  <ng-container [ngSwitch]="element.data.shapeKind">
-                    <ellipse *ngSwitchCase="'ellipse'"
-                      [attr.cx]="element.x + element.width / 2"
-                      [attr.cy]="element.y + element.height / 2"
-                      [attr.rx]="element.width / 2"
-                      [attr.ry]="element.height / 2"
-                      [attr.fill]="element.data.fill || '#cbd5f5'"
-                      [attr.stroke]="selectedElementId === element.id ? '#2563eb' : (element.data.stroke || 'transparent')"
-                      [attr.stroke-width]="lineStrokeWidth(element)"
-                      [attr.stroke-dasharray]="strokeDashArray(element)" />
-                      <polygon *ngSwitchCase="'triangle'"
-                        [attr.points]="trianglePoints(element)"
-                        [attr.fill]="element.data.fill || '#cbd5f5'"
-                        [attr.fill-opacity]="element.data.opacity ?? 1"
-                        [attr.stroke]="selectedElementId === element.id ? '#2563eb' : (element.data.stroke || 'transparent')"
-                        [attr.stroke-width]="lineStrokeWidth(element)" />
-                      <g *ngSwitchCase="'line'">
-                        <line
-                          [attr.x1]="element.x" [attr.y1]="element.y"
-                          [attr.x2]="element.x + element.width" [attr.y2]="element.y + element.height"
-                          [attr.stroke]="selectedElementId === element.id ? '#2563eb' : (element.data.stroke || '#1d4ed8')"
+                  [attr.transform]="elementTransform(element)">
+                  <ng-container [ngSwitch]="element.type">
+                    <ng-container *ngSwitchCase="'shape'">
+                      <ng-container [ngSwitch]="element.data.shapeKind">
+                        <ellipse *ngSwitchCase="'ellipse'"
+                          [attr.cx]="element.x + element.width / 2"
+                          [attr.cy]="element.y + element.height / 2"
+                          [attr.rx]="element.width / 2"
+                          [attr.ry]="element.height / 2"
+                          [attr.fill]="element.data.fill || '#cbd5f5'"
+                          [attr.stroke]="isElementSelected(element) ? '#2563eb' : (element.data.stroke || 'transparent')"
+                          [attr.stroke-width]="lineStrokeWidth(element)"
+                          [attr.stroke-dasharray]="strokeDashArray(element)" />
+                        <polygon *ngSwitchCase="'triangle'"
+                          [attr.points]="trianglePoints(element)"
+                          [attr.fill]="element.data.fill || '#cbd5f5'"
+                          [attr.fill-opacity]="element.data.opacity ?? 1"
+                          [attr.stroke]="isElementSelected(element) ? '#2563eb' : (element.data.stroke || 'transparent')"
                           [attr.stroke-width]="lineStrokeWidth(element)" />
-                      </g>
-                      <g *ngSwitchCase="'arrow'">
-                      <line
-                        [attr.x1]="element.x" [attr.y1]="element.y"
-                        [attr.x2]="element.x + element.width" [attr.y2]="element.y + element.height"
-                        [attr.stroke]="selectedElementId === element.id ? '#2563eb' : (element.data.stroke || '#1d4ed8')"
-                        [attr.stroke-width]="lineStrokeWidth(element)"
-                        [attr.stroke-dasharray]="strokeDashArray(element)" />
-                      <polygon [attr.points]="arrowHeadPoints(element)"
-                        [attr.fill]="selectedElementId === element.id ? '#2563eb' : (element.data.stroke || '#1d4ed8')"></polygon>
-                    </g>
-                    <rect *ngSwitchDefault
-                      [attr.x]="element.x" [attr.y]="element.y" [attr.width]="element.width" [attr.height]="element.height"
-                      [attr.rx]="element.data.radius || 12"
-                      [attr.fill]="element.data.fill || '#cbd5f5'"
-                      [attr.stroke]="selectedElementId === element.id ? '#2563eb' : (element.data.stroke || 'transparent')"
-                      [attr.stroke-width]="lineStrokeWidth(element)"
-                      [attr.stroke-dasharray]="strokeDashArray(element)" />
-                  </ng-container>
-                  </ng-container>
-                  <text *ngIf="element.type === 'text'" [attr.x]="textXFor(element)" [attr.y]="element.y + (element.data.fontSize || 24)"
-                    [attr.font-size]="element.data.fontSize || 24"
-                    [attr.fill]="element.data.fill || '#0f172a'"
-                    [attr.font-family]="element.data.fontFamily || 'Inter'"
-                    [attr.font-weight]="element.data.bold ? '700' : '400'"
-                    [attr.font-style]="element.data.italic ? 'italic' : 'normal'"
-                    [attr.text-decoration]="textDecorationFor(element)"
-                    [attr.text-anchor]="textAnchorFor(element)">
-                    <ng-container *ngFor="let line of renderLines(element); let i = index">
-                      <tspan [attr.x]="textXFor(element)" [attr.dy]="i === 0 ? 0 : lineHeightPx(element)">
-                        {{ bulletPrefix(element, i) }}{{ (line || ' ') }}
-                      </tspan>
+                        <g *ngSwitchCase="'line'">
+                          <line
+                            [attr.x1]="element.x" [attr.y1]="element.y"
+                            [attr.x2]="element.x + element.width" [attr.y2]="element.y + element.height"
+                            [attr.stroke]="isElementSelected(element) ? '#2563eb' : (element.data.stroke || '#1d4ed8')"
+                            [attr.stroke-width]="lineStrokeWidth(element)" />
+                        </g>
+                        <g *ngSwitchCase="'arrow'">
+                          <line
+                            [attr.x1]="element.x" [attr.y1]="element.y"
+                            [attr.x2]="element.x + element.width" [attr.y2]="element.y + element.height"
+                            [attr.stroke]="isElementSelected(element) ? '#2563eb' : (element.data.stroke || '#1d4ed8')"
+                            [attr.stroke-width]="lineStrokeWidth(element)"
+                            [attr.stroke-dasharray]="strokeDashArray(element)" />
+                          <polygon [attr.points]="arrowHeadPoints(element)"
+                            [attr.fill]="isElementSelected(element) ? '#2563eb' : (element.data.stroke || '#1d4ed8')"></polygon>
+                        </g>
+                        <rect *ngSwitchDefault
+                          [attr.x]="element.x" [attr.y]="element.y" [attr.width]="element.width" [attr.height]="element.height"
+                          [attr.rx]="element.data.radius || 12"
+                          [attr.fill]="(element.data.fill || '#cbd5f5')"
+                          [attr.fill-opacity]="element.data.opacity ?? 1"
+                          [attr.stroke]="isElementSelected(element) ? '#2563eb' : (element.data.stroke || 'transparent')"
+                          [attr.stroke-width]="lineStrokeWidth(element)"
+                          [attr.stroke-dasharray]="strokeDashArray(element)" />
+                      </ng-container>
                     </ng-container>
-                  </text>
-                  <ng-container *ngIf="element.type === 'image'">
-                    <ng-container *ngIf="imageRenderBox(element) as box">
-                      <defs>
-                        <clipPath [attr.id]="imageClipPathId(element, 'stage')">
-                          <rect [attr.x]="element.x" [attr.y]="element.y" [attr.width]="element.width" [attr.height]="element.height"></rect>
-                        </clipPath>
-                      </defs>
-                      <g [attr.clip-path]="imageClipPathUrl(element, 'stage')">
-                        <image
-                          [attr.x]="box.x"
-                          [attr.y]="box.y"
-                          [attr.width]="box.width"
-                          [attr.height]="box.height"
-                          preserveAspectRatio="xMidYMid slice"
-                          [attr.opacity]="element.data.opacity ?? 1"
-                          [style.filter]="imageFilterString(element) || null"
-                          [attr.href]="element.data.assetUrl"
-                          [attr.xlink:href]="element.data.assetUrl"></image>
-                      </g>
-                      <rect
-                        *ngIf="imageHasBorder(element)"
-                        [attr.x]="element.x"
-                        [attr.y]="element.y"
-                        [attr.width]="element.width"
-                        [attr.height]="element.height"
-                        fill="transparent"
-                        [attr.stroke]="element.data.stroke || '#1d4ed8'"
-                        [attr.stroke-width]="imageBorderWidthValue(element)"
-                        [attr.stroke-dasharray]="strokeDashArray(element)"></rect>
-                      <ng-container *ngIf="selectedElementId === element.id">
+                    <ng-container *ngSwitchCase="'text'">
+                      <text [attr.x]="textXFor(element)" [attr.y]="element.y + (element.data.fontSize || 24)"
+                        [attr.font-size]="element.data.fontSize || 24"
+                        [attr.fill]="element.data.fill || '#0f172a'"
+                        [attr.font-family]="element.data.fontFamily || 'Inter'"
+                        [attr.font-weight]="element.data.bold ? '700' : '400'"
+                        [attr.font-style]="element.data.italic ? 'italic' : 'normal'"
+                        [attr.text-decoration]="textDecorationFor(element)"
+                        [attr.text-anchor]="textAnchorFor(element)">
+                        <ng-container *ngFor="let line of renderLines(element); let i = index">
+                          <tspan [attr.x]="textXFor(element)" [attr.dy]="i === 0 ? 0 : lineHeightPx(element)">
+                            {{ bulletPrefix(element, i) }}{{ (line || ' ') }}
+                          </tspan>
+                        </ng-container>
+                      </text>
+                    </ng-container>
+                    <ng-container *ngSwitchCase="'image'">
+                      <ng-container *ngIf="imageRenderBox(element) as box">
+                        <defs>
+                          <clipPath [attr.id]="imageClipPathId(element, 'stage')">
+                            <rect [attr.x]="element.x" [attr.y]="element.y" [attr.width]="element.width" [attr.height]="element.height"></rect>
+                          </clipPath>
+                        </defs>
+                        <g [attr.clip-path]="imageClipPathUrl(element, 'stage')">
+                          <image
+                            [attr.x]="box.x"
+                            [attr.y]="box.y"
+                            [attr.width]="box.width"
+                            [attr.height]="box.height"
+                            preserveAspectRatio="xMidYMid slice"
+                            [attr.opacity]="element.data.opacity ?? 1"
+                            [style.filter]="imageFilterString(element) || null"
+                            [attr.href]="element.data.assetUrl"
+                            [attr.xlink:href]="element.data.assetUrl"></image>
+                        </g>
                         <rect
+                          *ngIf="imageHasBorder(element)"
                           [attr.x]="element.x"
                           [attr.y]="element.y"
                           [attr.width]="element.width"
                           [attr.height]="element.height"
                           fill="transparent"
-                          stroke="#2563eb"
-                          stroke-width="1.5"
-                          stroke-dasharray="6 4"></rect>
-                        <rect *ngFor="let handle of imageResizeHandles"
-                          [attr.x]="resizeHandlePosition(element, handle).x"
-                          [attr.y]="resizeHandlePosition(element, handle).y"
-                          [attr.width]="resizeHandleSize"
-                          [attr.height]="resizeHandleSize"
-                          rx="3"
-                          fill="#ffffff"
-                          stroke="#1d4ed8"
-                          stroke-width="1"
-                          [style.cursor]="resizeHandleCursor(handle)"
-                          (pointerdown)="onResizeHandlePointerDown($event, element, handle)"></rect>
+                          [attr.stroke]="element.data.stroke || '#1d4ed8'"
+                          [attr.stroke-width]="imageBorderWidthValue(element)"
+                          [attr.stroke-dasharray]="strokeDashArray(element)"></rect>
                       </ng-container>
+                    </ng-container>
+                  </ng-container>
+                  <ng-container *ngIf="showSelectionOutline(element)">
+                    <rect
+                      [attr.x]="element.x"
+                      [attr.y]="element.y"
+                      [attr.width]="element.width"
+                      [attr.height]="element.height"
+                      fill="transparent"
+                      stroke="#2563eb"
+                      stroke-width="1.5"
+                      stroke-dasharray="6 4"></rect>
+                  </ng-container>
+                  <ng-container *ngIf="showSelectionHandles(element)">
+                    <rect *ngFor="let handle of resizeHandles"
+                      [attr.x]="resizeHandlePosition(element, handle).x"
+                      [attr.y]="resizeHandlePosition(element, handle).y"
+                      [attr.width]="resizeHandleSize"
+                      [attr.height]="resizeHandleSize"
+                      rx="3"
+                      fill="#ffffff"
+                      stroke="#1d4ed8"
+                      stroke-width="1"
+                      [style.cursor]="resizeHandleCursor(handle)"
+                      (pointerdown)="onResizeHandlePointerDown($event, element, handle)"></rect>
+                    <ng-container *ngIf="rotationHandlePosition(element) as rot">
+                      <line
+                        [attr.x1]="rot.cx"
+                        [attr.y1]="rot.lineStartY"
+                        [attr.x2]="rot.cx"
+                        [attr.y2]="rot.lineEndY"
+                        stroke="#2563eb"
+                        stroke-width="1.5"></line>
+                      <circle
+                        [attr.cx]="rot.cx"
+                        [attr.cy]="rot.knobY"
+                        [attr.r]="rotationHandleRadius"
+                        fill="#ffffff"
+                        stroke="#1d4ed8"
+                        stroke-width="1"
+                        class="cursor-pointer"
+                        (pointerdown)="onRotationHandlePointerDown($event, element)"></circle>
                     </ng-container>
                   </ng-container>
                 </g>

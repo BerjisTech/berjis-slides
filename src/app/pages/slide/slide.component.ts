@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { SlidesService, SlideCollaborator, SlideDoc, UploadedAsset, defaultSlides } from '../../slides.service';
-import { CANVAS_HEIGHT, CANVAS_WIDTH, GRID_SIZE, SlideElement, SlideLayout, SlideModel, cloneSlide, createImageElement, createShapeElement, createSlide, createTextElement } from '../../models/slide';
+import { CANVAS_HEIGHT, CANVAS_WIDTH, GRID_SIZE, SlideElement, SlideLayout, SlideModel, cloneElement, cloneSlide, createImageElement, createShapeElement, createSlide, createTextElement } from '../../models/slide';
 
 type ResizeHandle = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
 
@@ -42,6 +42,10 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   slides: SlideModel[] = defaultSlides().slides;
   selectedSlideIndex = 0;
   selectedElementId: string | null = null;
+  private selectedElementIds = new Set<string>();
+  private history: Array<{ slides: SlideModel[]; selectedSlideIndex: number }> = [];
+  private historyIndex = -1;
+  private readonly historyLimit = 50;
 
   readonly zoomLevels = [0.25, 0.5, 1, 1.5, 2];
   zoom = 1;
@@ -57,8 +61,11 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   dragOverIndex = -1;
 
   draggingElementId: string | null = null;
+  private dragSelectionOffsets = new Map<string, { dx: number; dy: number }>();
   private dragOffset = { x: 0, y: 0 };
   alignmentGuides: AlignmentGuides = { vertical: null, horizontal: null };
+  private clipboardElements: SlideElement[] = [];
+  private pasteBump = 0;
 
   spacePressed = false;
   isPanning = false;
@@ -115,7 +122,11 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   pendingImageReplaceId: string | null = null;
   isCanvasDropActive = false;
   private canvasDragDepth = 0;
-  readonly imageResizeHandles: ResizeHandle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+  private marqueeSelecting = false;
+  private marqueeAdditive = false;
+  private marqueeStart = { x: 0, y: 0 };
+  private marqueeCurrent = { x: 0, y: 0 };
+  readonly resizeHandles: ResizeHandle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
   readonly resizeHandleSize = 12;
   readonly imageSizeRange = { min: 40, max: 1600 };
   readonly imageBorderRange = { min: 0, max: 20, step: 1 };
@@ -125,10 +136,17 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   readonly imageSaturationRange = { min: 0, max: 3, step: 0.05 };
   readonly imageFilterDefaults = { brightness: 1, contrast: 1, saturation: 1 };
   readonly imageRotationRange = { min: -180, max: 180, step: 1 };
+  readonly rotationHandleOffset = 32;
+  readonly rotationHandleRadius = 6;
   resizingElementId: string | null = null;
   resizeHandle: ResizeHandle | null = null;
   private resizeOrigin?: ResizeOrigin;
   private resizeDidMutate = false;
+  private resizeAspectRatio: number | null = null;
+  rotatingElementId: string | null = null;
+  private rotationOrigin: { x: number; y: number } | null = null;
+  private rotationStartAngle = 0;
+  private rotationInitial = 0;
   readonly lineHeightRange = { min: 0.8, max: 2.5, step: 0.1 };
   readonly bulletStyles: ('none' | 'bullet' | 'number')[] = ['none', 'bullet', 'number'];
   readonly strokeStyles: Array<'solid' | 'dashed' | 'dotted'> = ['solid', 'dashed', 'dotted'];
@@ -205,6 +223,9 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       this.deck = existing;
     }
     this.slides = this.cloneSlides(this.deck?.data?.slides ?? defaultSlides().slides);
+    this.history = [];
+    this.historyIndex = -1;
+    this.recordHistorySnapshot();
   }
 
   ngOnDestroy(): void {
@@ -238,6 +259,54 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       return null;
     }
     return slide.elements.find(el => el.id === this.selectedElementId && el.type === 'image') ?? null;
+  }
+
+  get selectedElements(): SlideElement[] {
+    const slide = this.activeSlide;
+    if (!slide || !this.selectedElementIds.size) {
+      return [];
+    }
+    return slide.elements.filter(el => this.selectedElementIds.has(el.id));
+  }
+
+  isElementSelected(element: SlideElement): boolean {
+    return this.selectedElementIds.has(element.id);
+  }
+
+  showSelectionOutline(element: SlideElement): boolean {
+    return this.isElementSelected(element);
+  }
+
+  showSelectionHandles(element: SlideElement): boolean {
+    return this.selectedElementIds.size === 1 && this.isElementSelected(element);
+  }
+
+  private replaceSelection(ids: string[]) {
+    this.selectedElementIds = new Set(ids);
+    this.selectedElementId = ids.length ? ids[ids.length - 1] : null;
+  }
+
+  private addToSelection(id: string) {
+    const next = new Set(this.selectedElementIds);
+    next.add(id);
+    this.selectedElementIds = next;
+    this.selectedElementId = id;
+  }
+
+  private removeFromSelection(id: string) {
+    if (this.selectedElementIds.has(id)) {
+      const next = new Set(this.selectedElementIds);
+      next.delete(id);
+      this.selectedElementIds = next;
+      if (this.selectedElementId === id) {
+        this.selectedElementId = next.size ? Array.from(next).pop() ?? null : null;
+      }
+    }
+  }
+
+  private clearSelection() {
+    this.selectedElementIds.clear();
+    this.selectedElementId = null;
   }
 
   onMenu(action: string) {
@@ -412,12 +481,11 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   }
 
   onResizeHandlePointerDown(event: PointerEvent, element: SlideElement, handle: ResizeHandle) {
-    if (element.type !== 'image') {
-      return;
-    }
     event.stopPropagation();
     event.preventDefault();
-    this.selectedElementId = element.id;
+    if (!this.isElementSelected(element)) {
+      this.replaceSelection([element.id]);
+    }
     const { x, y } = this.clientToCanvas(event);
     this.resizingElementId = element.id;
     this.resizeHandle = handle;
@@ -429,12 +497,13 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       pointerX: x,
       pointerY: y
     };
+    this.resizeAspectRatio = this.shouldLockResizeAspect(element, handle, event) ? this.elementAspectRatio(element) : null;
     this.resizeDidMutate = false;
   }
 
   selectSlide(index: number) {
     this.selectedSlideIndex = index;
-    this.selectedElementId = null;
+    this.clearSelection();
     this.insertMode = null;
   }
 
@@ -484,20 +553,90 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   @HostListener('window:keydown', ['$event'])
   handleKeyDown(event: KeyboardEvent) {
     if (this.isInputTarget(event.target)) return;
-    if (event.key === 'Escape' && this.insertMode) {
-      this.insertMode = null;
-      return;
+    if (event.key === 'Escape') {
+      if (this.insertMode) {
+        this.insertMode = null;
+        return;
+      }
+      if (this.selectedElementIds.size) {
+        this.clearSelection();
+        return;
+      }
     }
     if (event.code === 'Space') {
       this.spacePressed = true;
     }
-    if (event.key === 'ArrowLeft') {
+    const hasSelection = this.selectedElementIds.size > 0;
+    const metaKey = event.metaKey || event.ctrlKey;
+    const key = event.key.toLowerCase();
+    if (metaKey && key === 'z' && event.shiftKey) {
+      this.redo();
+      event.preventDefault();
+      return;
+    }
+    if (metaKey && key === 'z' && !event.shiftKey) {
+      this.undo();
+      event.preventDefault();
+      return;
+    }
+    if (metaKey && key === 'y') {
+      this.redo();
+      event.preventDefault();
+      return;
+    }
+    if (metaKey && key === 'c' && hasSelection) {
+      this.copySelection();
+      event.preventDefault();
+      return;
+    }
+    if (metaKey && key === 'x' && hasSelection) {
+      this.cutSelection();
+      event.preventDefault();
+      return;
+    }
+    if (metaKey && key === 'v') {
+      this.pasteClipboard();
+      event.preventDefault();
+      return;
+    }
+    if (metaKey && key === 'd' && hasSelection) {
+      this.duplicateSelection();
+      event.preventDefault();
+      return;
+    }
+    if ((event.key === 'Delete' || event.key === 'Backspace') && hasSelection) {
+      this.deleteSelectedElements();
+      event.preventDefault();
+      return;
+    }
+    if (hasSelection && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+      const delta = event.shiftKey ? 10 : 2;
+      switch (event.key) {
+        case 'ArrowUp':
+          this.moveSelectionBy(0, -delta);
+          break;
+        case 'ArrowDown':
+          this.moveSelectionBy(0, delta);
+          break;
+        case 'ArrowLeft':
+          this.moveSelectionBy(-delta, 0);
+          break;
+        case 'ArrowRight':
+          this.moveSelectionBy(delta, 0);
+          break;
+      }
+      event.preventDefault();
+      return;
+    }
+    if (!hasSelection && event.key === 'ArrowLeft') {
       this.prevSlide();
       event.preventDefault();
+      return;
     }
-    if (event.key === 'ArrowRight') {
+    if (!hasSelection && event.key === 'ArrowRight') {
       this.nextSlide();
       event.preventDefault();
+      return;
     }
   }
 
@@ -524,26 +663,56 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       this.insertShapeElement(event);
       return;
     }
-    this.selectedElementId = null;
+    if (event.button !== 0) {
+      return;
+    }
+    this.beginMarqueeSelection(event);
   }
 
   onElementPointerDown(event: PointerEvent, element: SlideElement) {
     event.preventDefault();
     event.stopPropagation();
+    if (event.button !== 0) {
+      return;
+    }
     if (this.insertMode) {
       this.insertMode = null;
     }
-    this.selectedElementId = element.id;
+    const additive = event.ctrlKey || event.metaKey || event.shiftKey;
+    if (additive) {
+      if (this.isElementSelected(element) && (event.ctrlKey || event.metaKey)) {
+        this.removeFromSelection(element.id);
+      } else {
+        this.addToSelection(element.id);
+      }
+    } else if (!this.isElementSelected(element)) {
+      this.replaceSelection([element.id]);
+    }
+    if (!this.selectedElementIds.size && !(event.ctrlKey || event.metaKey)) {
+      this.replaceSelection([element.id]);
+    }
+    if (!this.selectedElementIds.size) {
+      return;
+    }
     this.draggingElementId = element.id;
-    const { x, y } = this.clientToCanvas(event);
-    this.dragOffset = { x: x - element.x, y: y - element.y };
+    this.prepareDragSelection(event, element);
     this.updateAlignmentGuides(element);
   }
 
   @HostListener('window:pointermove', ['$event'])
   handlePointerMove(event: PointerEvent) {
     if (this.resizingElementId && this.resizeHandle) {
-      this.handleImageResizePointerMove(event);
+      this.handleResizePointerMove(event);
+      return;
+    }
+    if (this.rotatingElementId) {
+      this.handleRotationPointerMove(event);
+      event.preventDefault();
+      return;
+    }
+    if (this.marqueeSelecting) {
+      this.updateMarqueeSelection(event);
+      event.preventDefault();
       return;
     }
     if (this.isPanning) {
@@ -553,17 +722,10 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       event.preventDefault();
       return;
     }
-    if (!this.draggingElementId) return;
-    const slide = this.activeSlide;
-    if (!slide) return;
-    const element = slide.elements.find(el => el.id === this.draggingElementId);
-    if (!element) return;
-    const { x, y } = this.clientToCanvas(event);
-    const nextX = this.snapToGrid(x - this.dragOffset.x);
-    const nextY = this.snapToGrid(y - this.dragOffset.y);
-    element.x = this.clamp(nextX, 0, this.canvasWidth - element.width);
-    element.y = this.clamp(nextY, 0, this.canvasHeight - element.height);
-    this.updateAlignmentGuides(element);
+    if (this.draggingElementId) {
+      this.updateDraggingElements(event);
+      event.preventDefault();
+    }
   }
 
   @HostListener('window:pointerup', ['$event'])
@@ -574,6 +736,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     }
     if (this.draggingElementId) {
       this.draggingElementId = null;
+      this.dragSelectionOffsets.clear();
       this.alignmentGuides = { vertical: null, horizontal: null };
       this.queueSave();
     }
@@ -585,10 +748,255 @@ export class SlidePageComponent implements OnInit, OnDestroy {
         this.queueSave();
       }
       this.resizeDidMutate = false;
+      this.resizeAspectRatio = null;
+    }
+    if (this.rotatingElementId) {
+      this.rotatingElementId = null;
+      this.rotationOrigin = null;
+      this.queueSave();
+    }
+    if (this.marqueeSelecting) {
+      this.finishMarqueeSelection();
+      event.preventDefault();
     }
   }
 
-  private handleImageResizePointerMove(event: PointerEvent) {
+  get marqueeRectStyle(): Record<string, string> | null {
+    if (!this.marqueeSelecting) {
+      return null;
+    }
+    const rect = this.currentMarqueeRect();
+    if (!rect) {
+      return null;
+    }
+    return {
+      left: `${rect.x}px`,
+      top: `${rect.y}px`,
+      width: `${rect.width}px`,
+      height: `${rect.height}px`
+    };
+  }
+
+  private moveSelectionBy(dx: number, dy: number) {
+    if (!dx && !dy) {
+      return;
+    }
+    const slide = this.activeSlide;
+    if (!slide) {
+      return;
+    }
+    const targets = this.selectedElements;
+    if (!targets.length) {
+      return;
+    }
+    let changed = false;
+    for (const element of targets) {
+      const nextX = this.clamp(element.x + dx, 0, this.canvasWidth - element.width);
+      const nextY = this.clamp(element.y + dy, 0, this.canvasHeight - element.height);
+      if (nextX !== element.x || nextY !== element.y) {
+        element.x = nextX;
+        element.y = nextY;
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.queueSave();
+    }
+  }
+
+  private copySelection() {
+    const elements = this.selectedElements;
+    if (!elements.length) {
+      return;
+    }
+    this.clipboardElements = elements.map(element => ({
+      ...element,
+      data: { ...element.data }
+    }));
+    this.pasteBump = 0;
+  }
+
+  private cutSelection() {
+    if (!this.selectedElements.length) {
+      return;
+    }
+    this.copySelection();
+    this.deleteSelectedElements();
+  }
+
+  private pasteClipboard() {
+    if (!this.clipboardElements.length) {
+      return;
+    }
+    const slide = this.activeSlide;
+    if (!slide) {
+      return;
+    }
+    const offset = 24 + this.pasteBump;
+    this.pasteBump = (this.pasteBump + 8) % 64;
+    const newIds: string[] = [];
+    this.clipboardElements.forEach(source => {
+      const clone = cloneElement(source);
+      clone.x = this.clamp(clone.x + offset, 0, this.canvasWidth - clone.width);
+      clone.y = this.clamp(clone.y + offset, 0, this.canvasHeight - clone.height);
+      slide.elements.push(clone);
+      newIds.push(clone.id);
+    });
+    this.replaceSelection(newIds);
+    this.queueSave();
+  }
+
+  private duplicateSelection() {
+    if (!this.selectedElements.length) {
+      return;
+    }
+    this.copySelection();
+    this.pasteClipboard();
+  }
+
+  private deleteSelectedElements() {
+    const slide = this.activeSlide;
+    if (!slide || !this.selectedElementIds.size) {
+      return;
+    }
+    slide.elements = slide.elements.filter(element => !this.selectedElementIds.has(element.id));
+    this.clearSelection();
+    this.queueSave();
+  }
+
+  private prepareDragSelection(event: PointerEvent, anchor: SlideElement) {
+    const slide = this.activeSlide;
+    if (!slide) {
+      return;
+    }
+    if (!this.selectedElementIds.size) {
+      this.replaceSelection([anchor.id]);
+    }
+    const selectionIds = Array.from(this.selectedElementIds);
+    const { x, y } = this.clientToCanvas(event);
+    this.dragSelectionOffsets.clear();
+    for (const id of selectionIds) {
+      const target = slide.elements.find(el => el.id === id);
+      if (!target) continue;
+      this.dragSelectionOffsets.set(id, { dx: x - target.x, dy: y - target.y });
+    }
+    this.dragOffset = { x: x - anchor.x, y: y - anchor.y };
+  }
+
+  private updateDraggingElements(event: PointerEvent) {
+    const slide = this.activeSlide;
+    if (!slide) {
+      return;
+    }
+    const { x, y } = this.clientToCanvas(event);
+    let anchor: SlideElement | undefined;
+    if (!this.dragSelectionOffsets.size && this.draggingElementId) {
+      const element = slide.elements.find(el => el.id === this.draggingElementId);
+      if (element) {
+        this.dragSelectionOffsets.set(element.id, { dx: x - element.x, dy: y - element.y });
+      }
+    }
+    this.dragSelectionOffsets.forEach((offset, id) => {
+      const target = slide.elements.find(el => el.id === id);
+      if (!target) {
+        return;
+      }
+      const nextX = this.snapToGrid(x - offset.dx);
+      const nextY = this.snapToGrid(y - offset.dy);
+      target.x = this.clamp(nextX, 0, this.canvasWidth - target.width);
+      target.y = this.clamp(nextY, 0, this.canvasHeight - target.height);
+      if (id === this.draggingElementId) {
+        anchor = target;
+      }
+    });
+    if (anchor) {
+      this.updateAlignmentGuides(anchor);
+    }
+  }
+
+  private beginMarqueeSelection(event: PointerEvent) {
+    const { x, y } = this.clientToCanvas(event);
+    event.preventDefault();
+    this.marqueeSelecting = true;
+    this.marqueeAdditive = event.ctrlKey || event.metaKey || event.shiftKey;
+    this.marqueeStart = { x, y };
+    this.marqueeCurrent = { x, y };
+    if (!this.marqueeAdditive) {
+      this.clearSelection();
+    }
+  }
+
+  private updateMarqueeSelection(event: PointerEvent) {
+    const { x, y } = this.clientToCanvas(event);
+    this.marqueeCurrent = { x, y };
+  }
+
+  private finishMarqueeSelection() {
+    if (!this.marqueeSelecting) {
+      return;
+    }
+    this.marqueeSelecting = false;
+    const rect = this.currentMarqueeRect();
+    const slide = this.activeSlide;
+    if (!rect || !slide) {
+      this.marqueeAdditive = false;
+      return;
+    }
+    const hitIds = slide.elements
+      .filter(element => this.rectsIntersect(rect, this.elementBounds(element)))
+      .map(element => element.id);
+    if (!hitIds.length) {
+      this.marqueeAdditive = false;
+      return;
+    }
+    if (this.marqueeAdditive) {
+      hitIds.forEach(id => this.addToSelection(id));
+    } else {
+      this.replaceSelection(hitIds);
+    }
+    this.marqueeAdditive = false;
+  }
+
+  private currentMarqueeRect(): { x: number; y: number; width: number; height: number } | null {
+    if (!this.marqueeSelecting) {
+      return null;
+    }
+    const width = Math.abs(this.marqueeCurrent.x - this.marqueeStart.x);
+    const height = Math.abs(this.marqueeCurrent.y - this.marqueeStart.y);
+    if (width < 2 && height < 2) {
+      return null;
+    }
+    const x = Math.min(this.marqueeStart.x, this.marqueeCurrent.x);
+    const y = Math.min(this.marqueeStart.y, this.marqueeCurrent.y);
+    return { x, y, width, height };
+  }
+
+  private elementBounds(element: SlideElement): { x: number; y: number; width: number; height: number } {
+    if (element.type === 'shape' && (element.data.shapeKind === 'line' || element.data.shapeKind === 'arrow')) {
+      const x2 = element.x + element.width;
+      const y2 = element.y + element.height;
+      const minX = Math.min(element.x, x2);
+      const minY = Math.min(element.y, y2);
+      return {
+        x: minX,
+        y: minY,
+        width: Math.abs(element.width),
+        height: Math.abs(element.height)
+      };
+    }
+    return {
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height
+    };
+  }
+
+  private rectsIntersect(a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }) {
+    return !(a.x + a.width < b.x || b.x + b.width < a.x || a.y + a.height < b.y || b.y + b.height < a.y);
+  }
+
+  private handleResizePointerMove(event: PointerEvent) {
     if (!this.resizingElementId || !this.resizeHandle || !this.resizeOrigin) {
       return;
     }
@@ -597,7 +1005,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       return;
     }
     const element = slide.elements.find(el => el.id === this.resizingElementId);
-    if (!element || element.type !== 'image') {
+    if (!element) {
       return;
     }
     const { x, y } = this.clientToCanvas(event);
@@ -607,7 +1015,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     let nextHeight = this.resizeOrigin.height;
     let nextX = this.resizeOrigin.x;
     let nextY = this.resizeOrigin.y;
-    const minSize = this.imageSizeRange.min;
+    const minSize = this.resizeMinSize(element);
     const handle = this.resizeHandle;
     const affectsWest = handle.includes('w');
     const affectsEast = handle.includes('e');
@@ -629,23 +1037,24 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       nextY = this.resizeOrigin.y + dy;
     }
 
+    let aspectRatio = this.resizeAspectRatio ?? null;
+    if (handle.length === 2 && event.shiftKey) {
+      aspectRatio = this.elementAspectRatio(element) ?? aspectRatio;
+    }
     nextWidth = Math.max(minSize, nextWidth);
     nextHeight = Math.max(minSize, nextHeight);
 
-    if (this.isImageAspectLocked(element) && handle.length === 2) {
-      const ratio = this.imageAspectRatio(element);
-      if (ratio > 0) {
-        if (Math.abs(dx) >= Math.abs(dy)) {
-          nextHeight = nextWidth / ratio;
-        } else {
-          nextWidth = nextHeight * ratio;
-        }
-        if (affectsNorth) {
-          nextY = this.resizeOrigin.y + (this.resizeOrigin.height - nextHeight);
-        }
-        if (affectsWest) {
-          nextX = this.resizeOrigin.x + (this.resizeOrigin.width - nextWidth);
-        }
+    if (aspectRatio && handle.length === 2) {
+      if (Math.abs(dx) >= Math.abs(dy)) {
+        nextHeight = nextWidth / aspectRatio;
+      } else {
+        nextWidth = nextHeight * aspectRatio;
+      }
+      if (affectsNorth) {
+        nextY = this.resizeOrigin.y + (this.resizeOrigin.height - nextHeight);
+      }
+      if (affectsWest) {
+        nextX = this.resizeOrigin.x + (this.resizeOrigin.width - nextWidth);
       }
     }
 
@@ -656,13 +1065,75 @@ export class SlidePageComponent implements OnInit, OnDestroy {
 
     element.x = Math.round(nextX);
     element.y = Math.round(nextY);
-    element.width = Math.round(nextWidth);
-    element.height = Math.round(nextHeight);
-    if (element.width > 0 && element.height > 0) {
-      element.data.aspectRatio = element.width / element.height;
+    element.width = Math.max(1, Math.round(nextWidth));
+    element.height = Math.max(1, Math.round(nextHeight));
+    if (element.type === 'image') {
+      if (element.width > 0 && element.height > 0) {
+        element.data.aspectRatio = element.width / element.height;
+      }
+      this.normalizeImageCrop(element);
     }
-    this.normalizeImageCrop(element);
     this.resizeDidMutate = true;
+  }
+
+  onRotationHandlePointerDown(event: PointerEvent, element: SlideElement) {
+    event.stopPropagation();
+    event.preventDefault();
+    if (!this.isElementSelected(element)) {
+      this.replaceSelection([element.id]);
+    }
+    const center = this.elementCenter(element);
+    this.rotatingElementId = element.id;
+    this.rotationOrigin = center;
+    this.rotationStartAngle = this.pointerAngle(event, center);
+    this.rotationInitial = element.rotation ?? 0;
+  }
+
+  private handleRotationPointerMove(event: PointerEvent) {
+    if (!this.rotatingElementId || !this.rotationOrigin) {
+      return;
+    }
+    const slide = this.activeSlide;
+    if (!slide) {
+      return;
+    }
+    const element = slide.elements.find(el => el.id === this.rotatingElementId);
+    if (!element) {
+      return;
+    }
+    const angle = this.pointerAngle(event, this.rotationOrigin);
+    let next = this.rotationInitial + (angle - this.rotationStartAngle);
+    if (event.shiftKey) {
+      next = Math.round(next / 15) * 15;
+    }
+    if (next < -180 || next > 180) {
+      next = ((next + 180) % 360) - 180;
+    }
+    element.rotation = Math.round(next);
+    this.resizeDidMutate = true;
+  }
+
+  private elementCenter(element: SlideElement): { x: number; y: number } {
+    const bounds = this.elementBounds(element);
+    return {
+      x: bounds.x + bounds.width / 2,
+      y: bounds.y + bounds.height / 2
+    };
+  }
+
+  rotationHandlePosition(element: SlideElement): { cx: number; lineStartY: number; lineEndY: number; knobY: number } {
+    const bounds = this.elementBounds(element);
+    const cx = bounds.x + bounds.width / 2;
+    const lineStartY = bounds.y;
+    const lineEndY = bounds.y - this.rotationHandleOffset;
+    const knobY = lineEndY - this.rotationHandleRadius;
+    return { cx, lineStartY, lineEndY, knobY };
+  }
+
+  private pointerAngle(event: PointerEvent, center: { x: number; y: number }): number {
+    const { x, y } = this.clientToCanvas(event);
+    const angle = Math.atan2(y - center.y, x - center.x) * (180 / Math.PI);
+    return angle;
   }
 
   @HostListener('document:dragend')
@@ -700,7 +1171,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       align: 'left'
     });
     slide.elements.push(element);
-    this.selectedElementId = element.id;
+    this.replaceSelection([element.id]);
     this.insertMode = null;
     this.alignmentGuides = { vertical: null, horizontal: null };
     this.queueSave();
@@ -728,7 +1199,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       strokeWidth: preset.strokeWidth
     });
     slide.elements.push(element);
-    this.selectedElementId = element.id;
+    this.replaceSelection([element.id]);
     this.insertMode = null;
     this.alignmentGuides = { vertical: null, horizontal: null };
     this.queueSave();
@@ -758,7 +1229,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     if (existingElement && existingElement.type === 'image') {
       this.applyImageAsset(existingElement, options);
       this.normalizeImageCrop(existingElement);
-      this.selectedElementId = existingElement.id;
+      this.replaceSelection([existingElement.id]);
       this.queueSave();
       return existingElement;
     }
@@ -778,7 +1249,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       source: options.source
     });
     slide.elements.push(element);
-    this.selectedElementId = element.id;
+    this.replaceSelection([element.id]);
     this.normalizeImageCrop(element);
     this.queueSave();
     return element;
@@ -1209,6 +1680,38 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     return element.data.lockAspectRatio !== false;
   }
 
+  private shouldLockResizeAspect(element: SlideElement, handle: ResizeHandle, event: PointerEvent): boolean {
+    if (handle.length !== 2) {
+      return false;
+    }
+    if (event.shiftKey) {
+      return true;
+    }
+    if (element.type === 'image') {
+      return this.isImageAspectLocked(element);
+    }
+    return false;
+  }
+
+  private elementAspectRatio(element: SlideElement): number | null {
+    const width = Math.abs(element.width);
+    const height = Math.abs(element.height);
+    if (!width || !height) {
+      return null;
+    }
+    return width / height;
+  }
+
+  private resizeMinSize(element: SlideElement): number {
+    if (element.type === 'image') {
+      return this.imageSizeRange.min;
+    }
+    if (element.type === 'text') {
+      return 24;
+    }
+    return 16;
+  }
+
   imageAspectRatio(element: SlideElement): number {
     if (element.type !== 'image') {
       return 1;
@@ -1294,16 +1797,14 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     return element.rotation ?? 0;
   }
 
-  imageTransform(element: SlideElement): string | null {
-    if (element.type !== 'image') {
-      return null;
-    }
+  elementTransform(element: SlideElement): string | null {
     const angle = element.rotation ?? 0;
     if (!angle) {
       return null;
     }
-    const cx = element.x + element.width / 2;
-    const cy = element.y + element.height / 2;
+    const bounds = this.elementBounds(element);
+    const cx = bounds.x + bounds.width / 2;
+    const cy = bounds.y + bounds.height / 2;
     return `rotate(${angle} ${cx} ${cy})`;
   }
 
@@ -1362,6 +1863,46 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     }));
   }
 
+  private recordHistorySnapshot() {
+    const snapshot = {
+      slides: this.cloneSlides(this.slides),
+      selectedSlideIndex: this.selectedSlideIndex
+    };
+    if (this.historyIndex < this.history.length - 1) {
+      this.history.splice(this.historyIndex + 1);
+    }
+    this.history.push(snapshot);
+    if (this.history.length > this.historyLimit) {
+      this.history.shift();
+    }
+    this.historyIndex = this.history.length - 1;
+  }
+
+  private undo() {
+    if (this.historyIndex <= 0) {
+      return;
+    }
+    this.historyIndex -= 1;
+    const snapshot = this.history[this.historyIndex];
+    this.applyHistorySnapshot(snapshot);
+  }
+
+  private redo() {
+    if (this.historyIndex >= this.history.length - 1) {
+      return;
+    }
+    this.historyIndex += 1;
+    const snapshot = this.history[this.historyIndex];
+    this.applyHistorySnapshot(snapshot);
+  }
+
+  private applyHistorySnapshot(snapshot: { slides: SlideModel[]; selectedSlideIndex: number }) {
+    this.slides = this.cloneSlides(snapshot.slides);
+    this.selectedSlideIndex = Math.min(snapshot.selectedSlideIndex, Math.max(this.slides.length - 1, 0));
+    this.clearSelection();
+    this.queueSave(false);
+  }
+
   private async persistDeck() {
     if (!this.deck) return;
     const payload: SlideDoc = {
@@ -1389,9 +1930,12 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     }
   }
 
-  queueSave() {
+  queueSave(recordHistory = true) {
     if (!this.deck) {
       return;
+    }
+    if (recordHistory) {
+      this.recordHistorySnapshot();
     }
     if (this.pendingSave) {
       clearTimeout(this.pendingSave);
