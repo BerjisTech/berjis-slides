@@ -94,6 +94,8 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   recentStrokeColors: string[] = [];
   imageUploadError: string | null = null;
   imageUploading = false;
+  isCanvasDropActive = false;
+  private canvasDragDepth = 0;
   readonly lineHeightRange = { min: 0.8, max: 2.5, step: 0.1 };
   readonly bulletStyles: ('none' | 'bullet' | 'number')[] = ['none', 'bullet', 'number'];
   readonly strokeStyles: Array<'solid' | 'dashed' | 'dotted'> = ['solid', 'dashed', 'dotted'];
@@ -248,33 +250,20 @@ export class SlidePageComponent implements OnInit, OnDestroy {
 
   triggerImageUpload() {
     this.imageUploadError = null;
-    if (this.imageFileInput?.nativeElement) {
-      this.imageFileInput.nativeElement.value = '';
-      this.imageFileInput.nativeElement.click();
-    }
+    this.resetImageFileInput();
+    this.imageFileInput?.nativeElement?.click();
   }
 
   async handleImageFileChange(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (!input?.files?.length) {
-      return;
-    }
-    const file = input.files[0];
+    const input = event.target as HTMLInputElement | null;
+    const file = input?.files?.[0] ?? null;
     if (!file) {
       return;
     }
-    this.imageUploadError = null;
-    this.imageUploading = true;
     try {
-      const asset = await this.svc.uploadImage(file);
-      this.insertUploadedImage(asset);
-    } catch (err) {
-      this.imageUploadError = err instanceof Error ? err.message : 'Upload failed';
+      await this.uploadImageFromFile(file);
     } finally {
-      this.imageUploading = false;
-      if (this.imageFileInput?.nativeElement) {
-        this.imageFileInput.nativeElement.value = '';
-      }
+      this.resetImageFileInput();
     }
   }
 
@@ -294,6 +283,54 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       source: 'external',
       name: trimmed
     });
+  }
+
+  onCanvasDragEnter(event: DragEvent) {
+    if (!this.shouldHandleImageDrag(event)) {
+      return;
+    }
+    event.preventDefault();
+    this.canvasDragDepth += 1;
+    this.isCanvasDropActive = true;
+    this.imageUploadError = null;
+  }
+
+  onCanvasDragOver(event: DragEvent) {
+    if (!this.shouldHandleImageDrag(event)) {
+      return;
+    }
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'copy';
+    }
+    if (!this.isCanvasDropActive) {
+      this.isCanvasDropActive = true;
+    }
+  }
+
+  onCanvasDragLeave(event: DragEvent) {
+    if (!this.shouldHandleImageDrag(event)) {
+      return;
+    }
+    event.preventDefault();
+    this.canvasDragDepth = Math.max(0, this.canvasDragDepth - 1);
+    if (this.canvasDragDepth === 0) {
+      this.resetCanvasDropState();
+    }
+  }
+
+  async onCanvasDrop(event: DragEvent) {
+    if (!this.shouldHandleImageDrag(event)) {
+      return;
+    }
+    event.preventDefault();
+    const file = this.getImageFileFromTransfer(event.dataTransfer);
+    this.resetCanvasDropState();
+    if (!file) {
+      this.imageUploadError = 'Drop an image file (PNG, JPG, SVG, WebP, etc.).';
+      return;
+    }
+    await this.uploadImageFromFile(file);
   }
 
   selectSlide(index: number) {
@@ -439,6 +476,14 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     }
   }
 
+  @HostListener('document:dragend')
+  @HostListener('document:drop')
+  handleDocumentDragReset() {
+    if (this.isCanvasDropActive || this.canvasDragDepth !== 0) {
+      this.resetCanvasDropState();
+    }
+  }
+
   private startPan(event: PointerEvent) {
     this.isPanning = true;
     this.panOrigin = { ...this.pan };
@@ -535,6 +580,99 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     slide.elements.push(element);
     this.selectedElementId = element.id;
     this.queueSave();
+  }
+
+  private async uploadImageFromFile(file: File) {
+    if (!this.isImageFile(file)) {
+      this.imageUploadError = 'Only image files are supported.';
+      return;
+    }
+    this.imageUploadError = null;
+    this.imageUploading = true;
+    try {
+      const asset = await this.svc.uploadImage(file);
+      this.insertUploadedImage(asset);
+    } catch (err) {
+      this.imageUploadError = err instanceof Error ? err.message : 'Upload failed';
+    } finally {
+      this.imageUploading = false;
+    }
+  }
+
+  private resetImageFileInput() {
+    if (this.imageFileInput?.nativeElement) {
+      this.imageFileInput.nativeElement.value = '';
+    }
+  }
+
+  private resetCanvasDropState() {
+    this.canvasDragDepth = 0;
+    this.isCanvasDropActive = false;
+  }
+
+  private shouldHandleImageDrag(event: DragEvent): boolean {
+    const dataTransfer = event.dataTransfer;
+    if (!dataTransfer) {
+      return false;
+    }
+    const items = dataTransfer.items;
+    if (items && items.length) {
+      for (let i = 0; i < items.length; i += 1) {
+        const item = items[i];
+        if (item && item.kind === 'file' && (!item.type || item.type.startsWith('image/'))) {
+          return true;
+        }
+      }
+    }
+    const files = dataTransfer.files;
+    if (files && files.length) {
+      for (let i = 0; i < files.length; i += 1) {
+        if (this.isImageFile(files[i])) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private getImageFileFromTransfer(dataTransfer: DataTransfer | null): File | null {
+    if (!dataTransfer) {
+      return null;
+    }
+    const files = dataTransfer.files;
+    if (files && files.length) {
+      for (let i = 0; i < files.length; i += 1) {
+        const file = files[i];
+        if (this.isImageFile(file)) {
+          return file;
+        }
+      }
+    }
+    const items = dataTransfer.items;
+    if (items && items.length) {
+      for (let i = 0; i < items.length; i += 1) {
+        const item = items[i];
+        if (!item || item.kind !== 'file') {
+          continue;
+        }
+        const file = item.getAsFile();
+        if (this.isImageFile(file)) {
+          return file;
+        }
+      }
+    }
+    return null;
+  }
+
+  private isImageFile(file?: File | null): file is File {
+    if (!file) {
+      return false;
+    }
+    if (file.type) {
+      return file.type.startsWith('image/');
+    }
+    const name = file.name || '';
+    return /(\.(png|apng|gif|jpe?g|svg|bmp|webp|avif|heic|heif))$/i.test(name);
   }
 
   toggleRichStyle(style: 'bold' | 'italic' | 'underline' | 'strikethrough') {

@@ -443,7 +443,15 @@
         [class.cursor-crosshair]="insertMode === 'shape'">
         <div class="absolute top-0 left-12 right-0 h-8 bg-blue-100/70 dark:bg-slate-700/70 border-b border-blue-200/80 dark:border-slate-600" [ngStyle]="horizontalRulerStyle"></div>
         <div class="absolute top-12 left-0 bottom-0 w-8 bg-blue-100/70 dark:bg-slate-700/70 border-r border-blue-200/80 dark:border-slate-600" [ngStyle]="verticalRulerStyle"></div>
-        <div class="ml-12 mt-12 overflow-hidden rounded-2xl bg-slate-50/90 dark:bg-slate-950/80 border border-blue-900/10 dark:border-slate-800 min-h-[600px] select-none editor-stage">
+        <div class="ml-12 mt-12 overflow-hidden rounded-2xl bg-slate-50/90 dark:bg-slate-950/80 border border-blue-900/10 dark:border-slate-800 min-h-[600px] select-none editor-stage relative"
+          (dragenter)="onCanvasDragEnter($event)"
+          (dragover)="onCanvasDragOver($event)"
+          (dragleave)="onCanvasDragLeave($event)"
+          (drop)="onCanvasDrop($event)">
+          <div *ngIf="isCanvasDropActive" class="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-blue-400/60 dark:border-blue-300/60 bg-blue-100/40 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100">
+            <span class="text-base font-semibold">Drop to add image</span>
+            <span class="text-sm text-slate-600 dark:text-slate-200">PNG, JPG, SVG, WebP supported</span>
+          </div>
           <div class="relative" [style.width.px]="canvasWidth + 400" [style.height.px]="canvasHeight + 400">
             <div class="absolute editor-canvas" [style.transform]="canvasTransform" [style.width.px]="canvasWidth" [style.height.px]="canvasHeight">
               <div class="absolute inset-0" [ngStyle]="gridStyle"></div>
