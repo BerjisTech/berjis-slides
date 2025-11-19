@@ -10,6 +10,9 @@ export interface SlideElement {
   height: number;
   rotation: number;
   data: {
+    groupId?: string;
+    locked?: boolean;
+    hidden?: boolean;
     text?: string;
     fontSize?: number;
     fill?: string;
@@ -135,6 +138,8 @@ export function createShapeElement(opts: ShapeElementOptions): SlideElement {
     height: opts.height,
     rotation: 0,
     data: {
+      locked: false,
+      hidden: false,
       fill: opts.fill ?? '#cbd5f5',
       stroke: opts.stroke ?? '#1d4ed8',
       radius: opts.radius ?? 12,
@@ -173,6 +178,8 @@ export function createTextElement(text: string, opts: TextElementOptions): Slide
     height: opts.height,
     rotation: 0,
     data: {
+      locked: false,
+      hidden: false,
       text,
       fontSize: opts.fontSize,
       fill: opts.fill ?? '#0f172a',
@@ -209,6 +216,8 @@ export function createImageElement(opts: ImageElementOptions): SlideElement {
     height: opts.height,
     rotation: 0,
     data: {
+      locked: false,
+      hidden: false,
       assetUrl: opts.url,
       assetName: opts.name,
       assetSize: opts.size,
@@ -226,9 +235,10 @@ export function createImageElement(opts: ImageElementOptions): SlideElement {
 }
 
 export function cloneElement(element: SlideElement): SlideElement {
+  const { groupId: _omitGroup, ...data } = element.data;
   return {
     ...element,
     id: createId('el'),
-    data: { ...element.data }
+    data: { ...data }
   };
 }

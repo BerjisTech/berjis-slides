@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { SlidesService, SlideCollaborator, SlideDoc, UploadedAsset, defaultSlides } from '../../slides.service';
-import { CANVAS_HEIGHT, CANVAS_WIDTH, GRID_SIZE, SlideElement, SlideLayout, SlideModel, cloneElement, cloneSlide, createImageElement, createShapeElement, createSlide, createTextElement } from '../../models/slide';
+import { CANVAS_HEIGHT, CANVAS_WIDTH, GRID_SIZE, SlideElement, SlideLayout, SlideModel, cloneElement, cloneSlide, createId, createImageElement, createShapeElement, createSlide, createTextElement } from '../../models/slide';
 
 type ResizeHandle = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
 
@@ -273,12 +273,74 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     return this.selectedElementIds.has(element.id);
   }
 
+  isLocked(element: SlideElement): boolean {
+    return !!element.data.locked;
+  }
+
+  isElementHidden(element: SlideElement): boolean {
+    return !!element.data.hidden;
+  }
+
   showSelectionOutline(element: SlideElement): boolean {
     return this.isElementSelected(element);
   }
 
   showSelectionHandles(element: SlideElement): boolean {
-    return this.selectedElementIds.size === 1 && this.isElementSelected(element);
+    return this.selectedElementIds.size === 1 && this.isElementSelected(element) && !this.isLocked(element) && !this.isElementHidden(element);
+  }
+
+  get selectionCount(): number {
+    return this.selectedElements.length;
+  }
+
+  selectionAllLocked(): boolean {
+    return this.selectionCount > 0 && this.selectedElements.every(element => this.isLocked(element));
+  }
+
+  selectionAnyLocked(): boolean {
+    return this.selectedElements.some(element => this.isLocked(element));
+  }
+
+  selectionAllHidden(): boolean {
+    return this.selectionCount > 0 && this.selectedElements.every(element => this.isElementHidden(element));
+  }
+
+  selectionAnyHidden(): boolean {
+    return this.selectedElements.some(element => this.isElementHidden(element));
+  }
+
+  selectionHasGroup(): boolean {
+    return this.selectedElements.some(element => !!element.data.groupId);
+  }
+
+  get layerEntries(): Array<{ id: string; element: SlideElement; label: string; order: number }> {
+    const slide = this.activeSlide;
+    if (!slide) {
+      return [];
+    }
+    const total = slide.elements.length;
+    return slide.elements.map((element, index) => ({
+      id: element.id,
+      element,
+      label: this.elementLabel(element),
+      order: total - index
+    })).reverse();
+  }
+
+  trackLayer(_index: number, entry: { id: string }): string {
+    return entry.id;
+  }
+
+  private elementLabel(element: SlideElement): string {
+    if (element.type === 'text') {
+      const content = element.data.text?.trim();
+      return content ? `Text: ${content.slice(0, 12)}${content.length > 12 ? '…' : ''}` : 'Text box';
+    }
+    if (element.type === 'image') {
+      return element.data.assetName ? `Image: ${element.data.assetName}` : 'Image';
+    }
+    const kind = element.data.shapeKind ?? 'rect';
+    return `Shape: ${kind}`;
   }
 
   private replaceSelection(ids: string[]) {
@@ -307,6 +369,41 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   private clearSelection() {
     this.selectedElementIds.clear();
     this.selectedElementId = null;
+  }
+
+  private findElementById(id: string | null): SlideElement | null {
+    if (!id) {
+      return null;
+    }
+    const slide = this.activeSlide;
+    if (!slide) {
+      return null;
+    }
+    return slide.elements.find(element => element.id === id) ?? null;
+  }
+
+  private selectGroup(groupId: string, additive: boolean) {
+    const slide = this.activeSlide;
+    if (!slide) {
+      return;
+    }
+    const ids = this.elementsInGroup(groupId).map(element => element.id);
+    if (!ids.length) {
+      return;
+    }
+    if (additive) {
+      ids.forEach(id => this.addToSelection(id));
+    } else {
+      this.replaceSelection(ids);
+    }
+  }
+
+  private elementsInGroup(groupId: string): SlideElement[] {
+    const slide = this.activeSlide;
+    if (!slide) {
+      return [];
+    }
+    return slide.elements.filter(element => element.data.groupId === groupId);
   }
 
   onMenu(action: string) {
@@ -604,6 +701,16 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       event.preventDefault();
       return;
     }
+    if (metaKey && key === 'g' && hasSelection && !event.shiftKey) {
+      this.groupSelection();
+      event.preventDefault();
+      return;
+    }
+    if (metaKey && key === 'g' && event.shiftKey) {
+      this.ungroupSelection();
+      event.preventDefault();
+      return;
+    }
     if ((event.key === 'Delete' || event.key === 'Backspace') && hasSelection) {
       this.deleteSelectedElements();
       event.preventDefault();
@@ -679,23 +786,44 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       this.insertMode = null;
     }
     const additive = event.ctrlKey || event.metaKey || event.shiftKey;
-    if (additive) {
-      if (this.isElementSelected(element) && (event.ctrlKey || event.metaKey)) {
-        this.removeFromSelection(element.id);
+    const groupId = element.data.groupId;
+    if (groupId) {
+      if (additive) {
+        const ids = this.elementsInGroup(groupId).map(entry => entry.id);
+        const shouldRemove = ids.every(id => this.selectedElementIds.has(id));
+        ids.forEach(id => {
+          if (shouldRemove) {
+            this.removeFromSelection(id);
+          } else {
+            this.addToSelection(id);
+          }
+        });
       } else {
-        this.addToSelection(element.id);
+        this.selectGroup(groupId, false);
       }
-    } else if (!this.isElementSelected(element)) {
-      this.replaceSelection([element.id]);
+    } else {
+      if (additive) {
+        if (this.isElementSelected(element) && (event.ctrlKey || event.metaKey)) {
+          this.removeFromSelection(element.id);
+        } else {
+          this.addToSelection(element.id);
+        }
+      } else if (!this.isElementSelected(element)) {
+        this.replaceSelection([element.id]);
+      }
     }
     if (!this.selectedElementIds.size && !(event.ctrlKey || event.metaKey)) {
       this.replaceSelection([element.id]);
     }
-    if (!this.selectedElementIds.size) {
+    if (!this.selectedElementIds.size || this.isLocked(element)) {
       return;
     }
     this.draggingElementId = element.id;
     this.prepareDragSelection(event, element);
+    if (!this.dragSelectionOffsets.size) {
+      this.draggingElementId = null;
+      return;
+    }
     this.updateAlignmentGuides(element);
   }
 
@@ -753,6 +881,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     if (this.rotatingElementId) {
       this.rotatingElementId = null;
       this.rotationOrigin = null;
+      this.resizeDidMutate = false;
       this.queueSave();
     }
     if (this.marqueeSelecting) {
@@ -791,11 +920,89 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     }
     let changed = false;
     for (const element of targets) {
+      if (this.isLocked(element)) {
+        continue;
+      }
       const nextX = this.clamp(element.x + dx, 0, this.canvasWidth - element.width);
       const nextY = this.clamp(element.y + dy, 0, this.canvasHeight - element.height);
       if (nextX !== element.x || nextY !== element.y) {
         element.x = nextX;
         element.y = nextY;
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.queueSave();
+    }
+  }
+
+  bringSelectionToFront() {
+    this.reorderSelection('front');
+  }
+
+  sendSelectionToBack() {
+    this.reorderSelection('back');
+  }
+
+  bringSelectionForward() {
+    this.reorderSelection('forward');
+  }
+
+  sendSelectionBackward() {
+    this.reorderSelection('backward');
+  }
+
+  toggleLockSelection(lock: boolean) {
+    if (!this.selectionCount) {
+      return;
+    }
+    let changed = false;
+    for (const element of this.selectedElements) {
+      if (!!element.data.locked !== lock) {
+        element.data.locked = lock;
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.queueSave();
+    }
+  }
+
+  toggleVisibilitySelection(hidden: boolean) {
+    if (!this.selectionCount) {
+      return;
+    }
+    let changed = false;
+    for (const element of this.selectedElements) {
+      if (!!element.data.hidden !== hidden) {
+        element.data.hidden = hidden;
+        changed = true;
+      }
+    }
+    if (changed) {
+      if (hidden) {
+        this.clearSelection();
+      }
+      this.queueSave();
+    }
+  }
+
+  groupSelection() {
+    if (this.selectionCount < 2) {
+      return;
+    }
+    const groupId = createId('grp');
+    for (const element of this.selectedElements) {
+      element.data.groupId = groupId;
+    }
+    this.queueSave();
+  }
+
+  ungroupSelection() {
+    let changed = false;
+    for (const element of this.selectedElements) {
+      if (element.data.groupId) {
+        delete element.data.groupId;
         changed = true;
       }
     }
@@ -864,6 +1071,65 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.queueSave();
   }
 
+  private reorderSelection(mode: 'front' | 'back' | 'forward' | 'backward') {
+    const slide = this.activeSlide;
+    if (!slide || !this.selectedElementIds.size) {
+      return;
+    }
+    const selectedIds = new Set(this.selectedElementIds);
+    const original = [...slide.elements];
+    if (mode === 'front' || mode === 'back') {
+      const selected = original.filter(el => selectedIds.has(el.id));
+      const others = original.filter(el => !selectedIds.has(el.id));
+      slide.elements = mode === 'front' ? [...others, ...selected] : [...selected, ...others];
+    } else if (mode === 'forward') {
+      for (let i = original.length - 2; i >= 0; i--) {
+        if (!selectedIds.has(slide.elements[i].id)) continue;
+        if (selectedIds.has(slide.elements[i + 1].id)) continue;
+        [slide.elements[i], slide.elements[i + 1]] = [slide.elements[i + 1], slide.elements[i]];
+      }
+    } else if (mode === 'backward') {
+      for (let i = 1; i < slide.elements.length; i += 1) {
+        if (!selectedIds.has(slide.elements[i].id)) continue;
+        if (selectedIds.has(slide.elements[i - 1].id)) continue;
+        [slide.elements[i], slide.elements[i - 1]] = [slide.elements[i - 1], slide.elements[i]];
+      }
+    }
+    this.queueSave();
+  }
+
+  selectLayerElement(element: SlideElement, event?: MouseEvent) {
+    event?.preventDefault();
+    event?.stopPropagation();
+    const additive = !!event && (event.ctrlKey || event.metaKey || event.shiftKey);
+    if (additive) {
+      if (this.isElementSelected(element)) {
+        this.removeFromSelection(element.id);
+      } else {
+        this.addToSelection(element.id);
+      }
+    } else {
+      this.replaceSelection([element.id]);
+    }
+  }
+
+  toggleLayerVisibility(element: SlideElement, event?: MouseEvent) {
+    event?.preventDefault();
+    event?.stopPropagation();
+    element.data.hidden = !element.data.hidden;
+    if (element.data.hidden) {
+      this.removeFromSelection(element.id);
+    }
+    this.queueSave();
+  }
+
+  toggleLayerLock(element: SlideElement, event?: MouseEvent) {
+    event?.preventDefault();
+    event?.stopPropagation();
+    element.data.locked = !element.data.locked;
+    this.queueSave();
+  }
+
   private prepareDragSelection(event: PointerEvent, anchor: SlideElement) {
     const slide = this.activeSlide;
     if (!slide) {
@@ -877,8 +1143,11 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.dragSelectionOffsets.clear();
     for (const id of selectionIds) {
       const target = slide.elements.find(el => el.id === id);
-      if (!target) continue;
+      if (!target || this.isLocked(target)) continue;
       this.dragSelectionOffsets.set(id, { dx: x - target.x, dy: y - target.y });
+    }
+    if (!this.dragSelectionOffsets.size) {
+      return;
     }
     this.dragOffset = { x: x - anchor.x, y: y - anchor.y };
   }
@@ -899,6 +1168,9 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.dragSelectionOffsets.forEach((offset, id) => {
       const target = slide.elements.find(el => el.id === id);
       if (!target) {
+        return;
+      }
+      if (this.isLocked(target)) {
         return;
       }
       const nextX = this.snapToGrid(x - offset.dx);
@@ -2456,14 +2728,4 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     element.data.cropOffsetY = 0;
   }
 
-  private findElementById(id: string | null): SlideElement | null {
-    if (!id) {
-      return null;
-    }
-    const slide = this.activeSlide;
-    if (!slide) {
-      return null;
-    }
-    return slide.elements.find(el => el.id === id) ?? null;
-  }
 }

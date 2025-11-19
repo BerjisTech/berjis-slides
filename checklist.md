@@ -77,14 +77,14 @@ Build a full-featured online presentation editor (like PowerPoint/Google Slides)
 - [x] Undo/Redo stack (Ctrl+Z/Y) - minimum 50 actions
 
 ### **Layering & Arrangement**
-- [ ] Bring to front
-- [ ] Send to back
-- [ ] Bring forward one layer
-- [ ] Send backward one layer
-- [ ] Group elements (Ctrl+G)
-- [ ] Ungroup elements (Ctrl+Shift+G)
-- [ ] Lock/unlock elements
-- [ ] Show/hide elements
+- [x] Bring to front
+- [x] Send to back
+- [x] Bring forward one layer
+- [x] Send backward one layer
+- [x] Group elements (Ctrl+G)
+- [x] Ungroup elements (Ctrl+Shift+G)
+- [x] Lock/unlock elements
+- [x] Show/hide elements
 
 ### **Alignment Tools**
 - [ ] Align left edges
