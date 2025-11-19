@@ -36,6 +36,9 @@ export interface SlideElement {
     cropZoom?: number;
     cropOffsetX?: number;
     cropOffsetY?: number;
+    brightness?: number;
+    contrast?: number;
+    saturation?: number;
   };
 }
 
@@ -218,7 +221,10 @@ export function createImageElement(opts: ImageElementOptions): SlideElement {
       lockAspectRatio: true,
       cropZoom: 1,
       cropOffsetX: 0,
-      cropOffsetY: 0
+      cropOffsetY: 0,
+      brightness: 1,
+      contrast: 1,
+      saturation: 1
     }
   };
 }

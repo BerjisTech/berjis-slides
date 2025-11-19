@@ -119,6 +119,9 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   readonly imageSizeRange = { min: 40, max: 1600 };
   readonly imageCropZoomRange = { min: 1, max: 4, step: 0.05 };
   readonly imageCropOffsetRange = { min: -100, max: 100, step: 1 };
+  readonly imageFilterRange = { min: 0.2, max: 2, step: 0.05 };
+  readonly imageSaturationRange = { min: 0, max: 3, step: 0.05 };
+  readonly imageFilterDefaults = { brightness: 1, contrast: 1, saturation: 1 };
   resizingElementId: string | null = null;
   resizeHandle: ResizeHandle | null = null;
   private resizeOrigin?: ResizeOrigin;
@@ -1040,6 +1043,26 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.queueSave();
   }
 
+  changeImageFilter(kind: 'brightness' | 'contrast' | 'saturation', value: number | string) {
+    const element = this.selectedImageElement;
+    if (!element) return;
+    const numeric = typeof value === 'string' ? Number(value) : value;
+    if (!Number.isFinite(numeric)) return;
+    const range = kind === 'saturation' ? this.imageSaturationRange : this.imageFilterRange;
+    const clamped = this.clamp(Number(numeric), range.min, range.max);
+    element.data[kind] = Number(clamped.toFixed(2));
+    this.queueSave();
+  }
+
+  resetImageFilters() {
+    const element = this.selectedImageElement;
+    if (!element) return;
+    element.data.brightness = this.imageFilterDefaults.brightness;
+    element.data.contrast = this.imageFilterDefaults.contrast;
+    element.data.saturation = this.imageFilterDefaults.saturation;
+    this.queueSave();
+  }
+
   changeLineHeight(value: number | string) {
     const element = this.selectedTextElement;
     if (!element) {
@@ -1107,6 +1130,42 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     }
     const value = axis === 'x' ? element.data.cropOffsetX ?? 0 : element.data.cropOffsetY ?? 0;
     return Math.round(value * 100);
+  }
+
+  imageFilterValue(element: SlideElement, kind: 'brightness' | 'contrast' | 'saturation'): number {
+    if (element.type !== 'image') {
+      return this.imageFilterDefaults[kind];
+    }
+    const value = element.data[kind];
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      const range = kind === 'saturation' ? this.imageSaturationRange : this.imageFilterRange;
+      return Number(this.clamp(value, range.min, range.max).toFixed(2));
+    }
+    return this.imageFilterDefaults[kind];
+  }
+
+  imageFilterString(element: SlideElement): string | null {
+    if (element.type !== 'image') {
+      return null;
+    }
+    const brightness = this.imageFilterValue(element, 'brightness');
+    const contrast = this.imageFilterValue(element, 'contrast');
+    const saturation = this.imageFilterValue(element, 'saturation');
+    if (brightness === 1 && contrast === 1 && saturation === 1) {
+      return null;
+    }
+    return `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
+  }
+
+  isImageFiltersDefault(element: SlideElement): boolean {
+    if (element.type !== 'image') {
+      return true;
+    }
+    return (
+      Math.abs(this.imageFilterValue(element, 'brightness') - this.imageFilterDefaults.brightness) < 0.01 &&
+      Math.abs(this.imageFilterValue(element, 'contrast') - this.imageFilterDefaults.contrast) < 0.01 &&
+      Math.abs(this.imageFilterValue(element, 'saturation') - this.imageFilterDefaults.saturation) < 0.01
+    );
   }
 
   get selectedFontFamily(): string {

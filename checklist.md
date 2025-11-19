@@ -59,7 +59,7 @@ Build a full-featured online presentation editor (like PowerPoint/Google Slides)
 - [x] Image URL insertion
 - [x] Drag-and-drop image upload
 - [x] Crop/resize functionality
-- [ ] Image filters (brightness, contrast, saturation)
+- [x] Image filters (brightness, contrast, saturation)
 - [ ] Image rotation
 - [ ] Image border options
 - [ ] Replace image while maintaining position/size
