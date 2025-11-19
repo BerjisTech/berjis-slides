@@ -112,6 +112,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   recentStrokeColors: string[] = [];
   imageUploadError: string | null = null;
   imageUploading = false;
+  pendingImageReplaceId: string | null = null;
   isCanvasDropActive = false;
   private canvasDragDepth = 0;
   readonly imageResizeHandles: ResizeHandle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
@@ -288,20 +289,57 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.insertMode = 'shape';
   }
 
-  triggerImageUpload() {
+  triggerImageUpload(targetElementId?: string) {
     this.imageUploadError = null;
+    this.pendingImageReplaceId = targetElementId ?? null;
     this.resetImageFileInput();
     this.imageFileInput?.nativeElement?.click();
+  }
+
+  replaceImageWithUpload() {
+    const element = this.selectedImageElement;
+    if (!element) {
+      return;
+    }
+    this.triggerImageUpload(element.id);
+  }
+
+  replaceImageWithUrl() {
+    const element = this.selectedImageElement;
+    if (!element) {
+      return;
+    }
+    const url = prompt('Paste image URL to replace the current image');
+    if (!url) {
+      return;
+    }
+    const trimmed = url.trim();
+    if (!/^https?:\/\//i.test(trimmed)) {
+      this.imageUploadError = 'Enter a valid http(s) URL.';
+      return;
+    }
+    this.imageUploadError = null;
+    this.insertImageElement(
+      {
+        url: trimmed,
+        source: 'external',
+        name: trimmed
+      },
+      element
+    );
   }
 
   async handleImageFileChange(event: Event) {
     const input = event.target as HTMLInputElement | null;
     const file = input?.files?.[0] ?? null;
+    const replaceElement = this.findElementById(this.pendingImageReplaceId);
+    this.pendingImageReplaceId = null;
     if (!file) {
+      this.resetImageFileInput();
       return;
     }
     try {
-      await this.uploadImageFromFile(file);
+      await this.uploadImageFromFile(file, replaceElement ?? undefined);
     } finally {
       this.resetImageFileInput();
     }
@@ -696,24 +734,35 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.queueSave();
   }
 
-  private insertUploadedImage(asset: UploadedAsset) {
+  private insertUploadedImage(asset: UploadedAsset, targetElement?: SlideElement) {
     if (!asset?.url) {
       this.imageUploadError = 'Upload response missing URL.';
       return;
     }
-    this.insertImageElement({
-      url: asset.url,
-      source: 'upload',
-      name: asset.name,
-      size: asset.size
-    });
+    this.insertImageElement(
+      {
+        url: asset.url,
+        source: 'upload',
+        name: asset.name,
+        size: asset.size
+      },
+      targetElement
+    );
   }
 
-  private insertImageElement(options: { url: string; source: 'upload' | 'external'; name?: string; size?: number }) {
+  private insertImageElement(options: { url: string; source: 'upload' | 'external'; name?: string; size?: number }, existingElement?: SlideElement | null): SlideElement | null {
     const slide = this.activeSlide;
     if (!slide) {
-      return;
+      return null;
     }
+    if (existingElement && existingElement.type === 'image') {
+      this.applyImageAsset(existingElement, options);
+      this.normalizeImageCrop(existingElement);
+      this.selectedElementId = existingElement.id;
+      this.queueSave();
+      return existingElement;
+    }
+
     const width = 360;
     const height = 240;
     const x = (this.canvasWidth - width) / 2;
@@ -732,9 +781,10 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.selectedElementId = element.id;
     this.normalizeImageCrop(element);
     this.queueSave();
+    return element;
   }
 
-  private async uploadImageFromFile(file: File) {
+  private async uploadImageFromFile(file: File, targetElement?: SlideElement) {
     if (!this.isImageFile(file)) {
       this.imageUploadError = 'Only image files are supported.';
       return;
@@ -743,7 +793,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.imageUploading = true;
     try {
       const asset = await this.svc.uploadImage(file);
-      this.insertUploadedImage(asset);
+      this.insertUploadedImage(asset, targetElement);
     } catch (err) {
       this.imageUploadError = err instanceof Error ? err.message : 'Upload failed';
     } finally {
@@ -1079,9 +1129,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   resetImageCrop() {
     const element = this.selectedImageElement;
     if (!element) return;
-    element.data.cropZoom = 1;
-    element.data.cropOffsetX = 0;
-    element.data.cropOffsetY = 0;
+    this.resetImageCropValues(element);
     this.queueSave();
   }
 
@@ -1839,5 +1887,39 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     }
     element.data.cropOffsetX = this.clamp(element.data.cropOffsetX ?? 0, -1, 1);
     element.data.cropOffsetY = this.clamp(element.data.cropOffsetY ?? 0, -1, 1);
+  }
+
+  private applyImageAsset(element: SlideElement, options: { url: string; source: 'upload' | 'external'; name?: string; size?: number }) {
+    if (element.type !== 'image') {
+      return;
+    }
+    element.data.assetUrl = options.url;
+    element.data.assetName = options.name;
+    element.data.assetSize = options.size;
+    element.data.assetSource = options.source;
+    element.data.cropZoom = 1;
+    element.data.cropOffsetX = 0;
+    element.data.cropOffsetY = 0;
+    element.data.aspectRatio = element.width > 0 && element.height > 0 ? element.width / element.height : element.data.aspectRatio;
+  }
+
+  private resetImageCropValues(element: SlideElement) {
+    if (element.type !== 'image') {
+      return;
+    }
+    element.data.cropZoom = 1;
+    element.data.cropOffsetX = 0;
+    element.data.cropOffsetY = 0;
+  }
+
+  private findElementById(id: string | null): SlideElement | null {
+    if (!id) {
+      return null;
+    }
+    const slide = this.activeSlide;
+    if (!slide) {
+      return null;
+    }
+    return slide.elements.find(el => el.id === id) ?? null;
   }
 }

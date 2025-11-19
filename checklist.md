@@ -62,7 +62,7 @@ Build a full-featured online presentation editor (like PowerPoint/Google Slides)
 - [x] Image filters (brightness, contrast, saturation)
 - [x] Image rotation
 - [x] Image border options
-- [ ] Replace image while maintaining position/size
+- [x] Replace image while maintaining position/size
 
 ### **Element Manipulation**
 - [ ] Select single element (click)
