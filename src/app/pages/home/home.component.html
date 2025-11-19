@@ -1,81 +1,94 @@
-<div class="p-5 flex items-center justify-center gap-2 shadow-brand rounded-xl mx-4 mt-6 bg-white/90 dark:bg-slate-900/80 backdrop-blur text-slate-900 dark:text-slate-100">
-  <div class="flex flex-col items-start justify-start gap-1 text-slate-700 dark:text-slate-200">
-    <span *ngFor="let burger of [0,1,2]" class="w-[20px] h-[2px] rounded bg-current"></span>
+<div class="mx-auto max-w-5xl px-4 py-6">
+  <div
+    class="flex flex-wrap items-center gap-3 rounded-2xl border border-white/60 bg-white/90 p-5 shadow-brand backdrop-blur text-slate-900 dark:border-slate-800/70 dark:bg-slate-900/70 dark:text-slate-100">
+    <div class="flex flex-col items-start justify-start gap-1 text-slate-700 dark:text-slate-200">
+      <span *ngFor="let burger of [0,1,2]" class="h-[2px] w-[20px] rounded bg-current"></span>
+    </div>
+    <div class="material-symbols-outlined text-2xl">slideshow</div>
+    <div class="text-lg font-semibold tracking-tight">Slides</div>
+    <div class="flex-grow"></div>
+    <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+      <span class="inline-block h-2 w-2 rounded-full" [class.bg-green-500]="syncMode==='remote'" [class.bg-amber-400]="syncMode==='local'"></span>
+      <span>Sync: {{ syncMode === 'remote' ? 'Server' : 'Local' }}</span>
+      <span *ngIf="isSaving" class="text-gray-500 dark:text-gray-300">Saving…</span>
+      <span *ngIf="!isSaving && lastSavedAt" class="text-gray-500 dark:text-gray-300">Saved {{ lastSavedAt | date:'shortTime' }}</span>
+      <span *ngIf="lastError" class="text-red-600 dark:text-rose-400">{{ lastError }}</span>
+    </div>
+    <div class="flex h-[24px] w-[24px] flex-wrap items-center justify-center gap-1 text-slate-700 dark:text-slate-200">
+      <span *ngFor="let burger of [0,1,2,3,4,5,6,7,8]" class="rounded-full bg-current p-[2px]"></span>
+    </div>
+    <div class="text-sm font-medium">User</div>
   </div>
-  <div class="font-semibold tracking-tight">Icon</div>
-  <div class="font-semibold text-lg">Slides</div>
-  <div class="flex-grow"></div>
-  <div class="mt-2 text-xs flex items-center gap-2 text-slate-600 dark:text-slate-300">
-    <span class="inline-block h-2 w-2 rounded-full" [class.bg-green-500]="syncMode==='remote'" [class.bg-amber-400]="syncMode==='local'"></span>
-    <span>Sync: {{ syncMode === 'remote' ? 'Server' : 'Local' }}</span>
-    <span *ngIf="isSaving" class="text-gray-500 dark:text-gray-300"> Saving.</span>
-    <span *ngIf="!isSaving && lastSavedAt" class="text-gray-500 dark:text-gray-300"> Saved {{ lastSavedAt | date:'shortTime' }}</span>
-    <span *ngIf="lastError" class="text-red-600 dark:text-rose-400"> {{ lastError }}</span>
-  </div>
-  <div class="cursor-pointer w-[20px] h-[20px] flex flex-wrap items-center justify-center gap-1 text-slate-700 dark:text-slate-200">
-    <span *ngFor="let burger of [0,1,2,3,4,5,6,7,8]" class="rounded-full bg-current p-[2px]"></span>
-  </div>
-  <div class="text-sm font-medium">User</div>
 </div>
-<div class="w-full py-[50px] bg-orange-100 border-t border-orange-200/80 dark:bg-slate-900/60 dark:border-slate-800/80 mt-6">
-  <div class="max-w-5xl mx-auto">
-    <div class="flex items-center justify-between mb-3">
-      <div class="flex-grow font-semibold text-slate-900 dark:text-slate-100">Start new presentation</div>
-      <div class="flex items-center justify-end gap-2 text-slate-600 dark:text-slate-300">
-        <div>Template gallery</div>
-        <div>chevrons</div>
-        <div class="w-px h-5 bg-slate-300 dark:bg-slate-600"></div>
-        <div class="cursor-pointer">
-          <div *ngFor="let burger of [0,1,2]" class="rounded-full bg-current p-[2px]"></div>
+
+<section class="w-full border-y border-slate-200/60 bg-white/80 py-12 backdrop-blur dark:border-slate-800/70 dark:bg-slate-900/40">
+  <div class="mx-auto max-w-5xl px-4">
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-4 text-slate-900 dark:text-slate-100">
+      <div class="flex-grow text-xl font-semibold">Start a new presentation</div>
+      <div class="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
+        <div class="hidden sm:block">Template gallery</div>
+        <div class="flex items-center gap-1">
+          <span class="material-symbols-outlined text-base">chevron_right</span>
+          <span class="material-symbols-outlined text-base">chevron_right</span>
+        </div>
+        <div class="h-5 w-px bg-slate-200 dark:bg-slate-700"></div>
+        <div class="flex flex-col gap-1 rounded-full border border-slate-200/70 p-1 dark:border-slate-700">
+          <div *ngFor="let burger of [0,1,2]" class="rounded-full bg-slate-700 p-[2px] dark:bg-slate-200"></div>
         </div>
       </div>
     </div>
-    <div class="grid grid-cols-5 auto-rows-[300px] gap-3">
-      <a routerLink="/slide/new" class="flex flex-col text-slate-700 dark:text-slate-200">
-        <div class="flex-grow shadow rounded bg-white/90 dark:bg-slate-800/80 border border-white/40 dark:border-slate-700"></div>
-        <div class="mt-2 font-medium">Blank presentation</div>
+    <div class="grid auto-rows-[220px] grid-cols-1 gap-4 sm:auto-rows-[260px] sm:grid-cols-3 lg:grid-cols-5">
+      <a routerLink="/slide/new" class="flex flex-col gap-2 text-slate-800 dark:text-slate-100">
+        <div
+          class="flex-grow rounded-2xl border border-slate-200/70 bg-white/95 shadow-sm transition hover:border-orange-200 hover:shadow-lg dark:border-slate-700 dark:bg-slate-900/60 dark:hover:border-orange-300/60">
+        </div>
+        <div class="text-sm font-medium">Blank presentation</div>
       </a>
-      <a *ngFor="let template of [0,1,2,3]" class="flex flex-col text-slate-700 dark:text-slate-200">
-        <div class="flex-grow shadow rounded bg-white/90 dark:bg-slate-800/80 border border-white/40 dark:border-slate-700"></div>
-        <div class="mt-2 font-medium">Blank presentation</div>
+      <a *ngFor="let template of [0,1,2,3]" class="flex flex-col gap-2 text-slate-800 dark:text-slate-100">
+        <div
+          class="flex-grow rounded-2xl border border-slate-200/70 bg-white/95 shadow-sm transition hover:border-orange-200 hover:shadow-lg dark:border-slate-700 dark:bg-slate-900/60 dark:hover:border-orange-300/60">
+        </div>
+        <div class="text-sm font-medium">Template {{ template + 1 }}</div>
       </a>
     </div>
   </div>
-</div>
-<div class="min-h-[60vh]">
+</section>
+
+<div class="min-h-[60vh] px-4">
   <!-- Logged out landing -->
-  <div *ngIf="authed === false" class="mx-auto max-w-5xl text-center py-16">
-    <h2 class="text-3xl font-semibold mb-3">Create and present with Berjis Slides</h2>
-    <p class="text-gray-600 mb-6">Fast presentations with collaboration and rich formatting.</p>
-    <div class="flex items-center justify-center gap-3">
-      <a class="px-4 py-2 rounded bg-blue-600 text-white shadow" href="https://berjis.tech">Get Started</a>
-      <a class="px-4 py-2 rounded border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100" routerLink="/slide/new">Try Demo</a>
+  <div *ngIf="authed === false" class="mx-auto max-w-5xl space-y-4 py-16 text-center text-slate-900 dark:text-slate-100">
+    <h2 class="text-3xl font-semibold">Create and present with Berjis Slides</h2>
+    <p class="text-slate-600 dark:text-slate-300">Fast presentations with collaboration and rich formatting.</p>
+    <div class="flex flex-wrap items-center justify-center gap-3">
+      <a class="rounded-full bg-blue-600 px-5 py-2 text-white shadow-sm transition hover:bg-blue-500" href="https://berjis.tech">Get Started</a>
+      <a class="rounded-full border border-slate-200 px-5 py-2 text-slate-900 dark:border-slate-600 dark:text-slate-100" routerLink="/slide/new">Try Demo</a>
     </div>
   </div>
 
   <!-- Logged in recents -->
-  <div *ngIf="authed === true" class="max-w-5xl mx-auto py-8">
-    <div class="flex items-center justify-between mb-3">
-      <div class="flex-grow font-bold text-lg">Recent presentations</div>
-      <div class="flex items-center justify-end gap-2">
+  <div *ngIf="authed === true" class="mx-auto max-w-5xl space-y-8 py-8 text-slate-900 dark:text-slate-100">
+    <div class="mb-3 flex flex-wrap items-center gap-3">
+      <div class="flex-grow text-lg font-bold">Recent presentations</div>
+      <div class="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
         <div>Owned by anyone</div>
-        <div>Chevrons</div>
+        <div class="flex items-center gap-1">
+          <span class="material-symbols-outlined text-base">swap_vert</span>
+          <span>Sort</span>
+        </div>
         <div>Table view</div>
-        <div>Sort A-z</div>
         <div>File picker</div>
       </div>
     </div>
-    <div class="w-full grid grid-cols-5 auto-rows-[300px] gap-3">
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <a [routerLink]="['/slide', s.id]" *ngFor="let s of recents"
-        class="shadow rounded bg-white/95 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 flex flex-col p-3 cursor-pointer hover:shadow-xl transition-colors">
-        <div class="font-medium text-slate-900 dark:text-slate-100">{{ s.title || 'Untitled presentation' }}</div>
-        <div class="flex-grow"></div>
+        class="flex flex-col gap-3 rounded-2xl border border-slate-200/70 bg-white/95 p-4 shadow-sm transition hover:border-orange-200 hover:shadow-lg dark:border-slate-700 dark:bg-slate-900/60 dark:hover:border-orange-300/60">
+        <div class="font-medium text-slate-900 dark:text-slate-100 truncate">{{ s.title || 'Untitled presentation' }}</div>
         <div class="text-xs text-gray-500 dark:text-slate-400">Updated {{ s.updatedAt | date:'medium' }}</div>
-        <span class="text-blue-600 dark:text-blue-300 text-sm">Open</span>
+        <span class="text-sm font-medium text-orange-500 dark:text-orange-300">Open</span>
       </a>
     </div>
   </div>
 
   <!-- Loading -->
-  <div *ngIf="authed === null" class="py-16 text-center text-gray-500">Checking your session.</div>
+  <div *ngIf="authed === null" class="py-16 text-center text-gray-500 dark:text-slate-400">Checking your session.</div>
 </div>
