@@ -32,6 +32,10 @@ export interface SlideElement {
     assetSize?: number;
     assetSource?: 'upload' | 'external';
     aspectRatio?: number;
+    lockAspectRatio?: boolean;
+    cropZoom?: number;
+    cropOffsetX?: number;
+    cropOffsetY?: number;
   };
 }
 
@@ -210,7 +214,11 @@ export function createImageElement(opts: ImageElementOptions): SlideElement {
       assetName: opts.name,
       assetSize: opts.size,
       assetSource: opts.source ?? 'upload',
-      aspectRatio: opts.height > 0 ? opts.width / opts.height : undefined
+      aspectRatio: opts.height > 0 ? opts.width / opts.height : undefined,
+      lockAspectRatio: true,
+      cropZoom: 1,
+      cropOffsetX: 0,
+      cropOffsetY: 0
     }
   };
 }

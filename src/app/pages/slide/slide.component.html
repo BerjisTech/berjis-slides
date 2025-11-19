@@ -356,6 +356,76 @@
     </div>
   </div>
 
+  <div *ngIf="selectedImageElement as imageEl" class="space-y-3">
+    <div class="flex flex-wrap items-center gap-3 bg-white/90 dark:bg-slate-900/70 border border-blue-900/10 dark:border-slate-800 rounded-2xl px-4 py-3 shadow-sm">
+      <div class="text-sm text-slate-700 dark:text-slate-200">
+        <div class="font-semibold">{{ imageEl.data.assetName || 'Image' }}</div>
+        <div class="text-xs text-slate-500 dark:text-slate-400">{{ imageEl.width }} × {{ imageEl.height }} px</div>
+      </div>
+      <div class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-200">
+        <label class="text-xs">Width</label>
+        <input type="number" class="w-24 border border-blue-900/15 dark:border-slate-700 rounded px-2 py-1 bg-white/90 dark:bg-slate-800"
+          [min]="imageSizeRange.min"
+          [max]="canvasWidth"
+          [ngModel]="imageEl.width"
+          (ngModelChange)="changeImageWidth($event)">
+      </div>
+      <div class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-200">
+        <label class="text-xs">Height</label>
+        <input type="number" class="w-24 border border-blue-900/15 dark:border-slate-700 rounded px-2 py-1 bg-white/90 dark:bg-slate-800"
+          [min]="imageSizeRange.min"
+          [max]="canvasHeight"
+          [ngModel]="imageEl.height"
+          (ngModelChange)="changeImageHeight($event)">
+      </div>
+      <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-200 select-none">
+        <input type="checkbox" class="accent-blue-600"
+          [checked]="isImageAspectLocked(imageEl)"
+          (change)="toggleImageAspectLock($event.target?.checked ?? false)">
+        Lock aspect
+      </label>
+      <button type="button" class="px-3 py-1 rounded border border-blue-900/15 dark:border-slate-600 bg-white/90 dark:bg-slate-800 text-sm"
+        (click)="resetImageSize()">Reset size</button>
+    </div>
+    <div class="flex flex-wrap items-center gap-3 bg-white/90 dark:bg-slate-900/70 border border-blue-900/10 dark:border-slate-800 rounded-2xl px-4 py-3 shadow-sm">
+      <div class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-200 w-full">
+        <label class="text-xs">Zoom</label>
+        <input type="range" class="flex-1"
+          [min]="imageCropZoomRange.min"
+          [max]="imageCropZoomRange.max"
+          [step]="imageCropZoomRange.step"
+          [ngModel]="imageCropZoomValue(imageEl)"
+          (ngModelChange)="changeImageCropZoom($event)">
+        <span class="w-16 text-right text-xs">{{ imageCropZoomValue(imageEl) | number:'1.1-1' }}x</span>
+      </div>
+      <div class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-200 w-full">
+        <label class="text-xs">Offset X</label>
+        <input type="range" class="flex-1"
+          [min]="imageCropOffsetRange.min"
+          [max]="imageCropOffsetRange.max"
+          [step]="imageCropOffsetRange.step"
+          [disabled]="imageCropZoomValue(imageEl) === 1"
+          [ngModel]="imageCropOffsetPercent(imageEl, 'x')"
+          (ngModelChange)="changeImageCropOffset('x', $event)">
+        <span class="w-12 text-right text-xs">{{ imageCropOffsetPercent(imageEl, 'x') }}%</span>
+      </div>
+      <div class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-200 w-full">
+        <label class="text-xs">Offset Y</label>
+        <input type="range" class="flex-1"
+          [min]="imageCropOffsetRange.min"
+          [max]="imageCropOffsetRange.max"
+          [step]="imageCropOffsetRange.step"
+          [disabled]="imageCropZoomValue(imageEl) === 1"
+          [ngModel]="imageCropOffsetPercent(imageEl, 'y')"
+          (ngModelChange)="changeImageCropOffset('y', $event)">
+        <span class="w-12 text-right text-xs">{{ imageCropOffsetPercent(imageEl, 'y') }}%</span>
+      </div>
+      <button type="button" class="px-3 py-1 rounded border border-blue-900/15 dark:border-slate-600 bg-white/90 dark:bg-slate-800 text-sm"
+        [disabled]="imageCropZoomValue(imageEl) === 1"
+        (click)="resetImageCrop()">Reset crop</button>
+    </div>
+  </div>
+
   <div class="flex gap-4 items-start">
     <aside class="w-56 bg-white/80 backdrop-blur dark:bg-slate-900/70 rounded-2xl border border-blue-900/10 dark:border-slate-800 shadow-sm p-3">
       <div class="text-sm font-semibold mb-3 text-slate-700 dark:text-slate-200">Slides</div>
@@ -418,15 +488,26 @@
               </ng-container>
               <text *ngIf="element.type === 'text'" [attr.x]="element.x + 12" [attr.y]="element.y + (element.data.fontSize || 24)"
                 [attr.font-size]="element.data.fontSize || 24" fill="#0f172a">{{ element.data.text }}</text>
-              <image *ngIf="element.type === 'image'"
-                [attr.x]="element.x"
-                [attr.y]="element.y"
-                [attr.width]="element.width"
-                [attr.height]="element.height"
-                [attr.opacity]="element.data.opacity ?? 1"
-                preserveAspectRatio="xMidYMid meet"
-                [attr.href]="element.data.assetUrl"
-                [attr.xlink:href]="element.data.assetUrl"></image>
+              <ng-container *ngIf="element.type === 'image'">
+                <ng-container *ngIf="imageRenderBox(element) as thumbBox">
+                  <defs>
+                    <clipPath [attr.id]="imageClipPathId(element, 'thumb-' + slide.id)">
+                      <rect [attr.x]="element.x" [attr.y]="element.y" [attr.width]="element.width" [attr.height]="element.height"></rect>
+                    </clipPath>
+                  </defs>
+                  <g [attr.clip-path]="imageClipPathUrl(element, 'thumb-' + slide.id)">
+                    <image
+                      [attr.x]="thumbBox.x"
+                      [attr.y]="thumbBox.y"
+                      [attr.width]="thumbBox.width"
+                      [attr.height]="thumbBox.height"
+                      [attr.opacity]="element.data.opacity ?? 1"
+                      preserveAspectRatio="xMidYMid slice"
+                      [attr.href]="element.data.assetUrl"
+                      [attr.xlink:href]="element.data.assetUrl"></image>
+                  </g>
+                </ng-container>
+              </ng-container>
             </g>
           </svg>
         </button>
@@ -518,15 +599,48 @@
                       </tspan>
                     </ng-container>
                   </text>
-                  <image *ngIf="element.type === 'image'"
-                    [attr.x]="element.x"
-                    [attr.y]="element.y"
-                    [attr.width]="element.width"
-                    [attr.height]="element.height"
-                    preserveAspectRatio="xMidYMid meet"
-                    [attr.opacity]="element.data.opacity ?? 1"
-                    [attr.href]="element.data.assetUrl"
-                    [attr.xlink:href]="element.data.assetUrl"></image>
+                  <ng-container *ngIf="element.type === 'image'">
+                    <ng-container *ngIf="imageRenderBox(element) as box">
+                      <defs>
+                        <clipPath [attr.id]="imageClipPathId(element, 'stage')">
+                          <rect [attr.x]="element.x" [attr.y]="element.y" [attr.width]="element.width" [attr.height]="element.height"></rect>
+                        </clipPath>
+                      </defs>
+                      <g [attr.clip-path]="imageClipPathUrl(element, 'stage')">
+                        <image
+                          [attr.x]="box.x"
+                          [attr.y]="box.y"
+                          [attr.width]="box.width"
+                          [attr.height]="box.height"
+                          preserveAspectRatio="xMidYMid slice"
+                          [attr.opacity]="element.data.opacity ?? 1"
+                          [attr.href]="element.data.assetUrl"
+                          [attr.xlink:href]="element.data.assetUrl"></image>
+                      </g>
+                      <ng-container *ngIf="selectedElementId === element.id">
+                        <rect
+                          [attr.x]="element.x"
+                          [attr.y]="element.y"
+                          [attr.width]="element.width"
+                          [attr.height]="element.height"
+                          fill="transparent"
+                          stroke="#2563eb"
+                          stroke-width="1.5"
+                          stroke-dasharray="6 4"></rect>
+                        <rect *ngFor="let handle of imageResizeHandles"
+                          [attr.x]="resizeHandlePosition(element, handle).x"
+                          [attr.y]="resizeHandlePosition(element, handle).y"
+                          [attr.width]="resizeHandleSize"
+                          [attr.height]="resizeHandleSize"
+                          rx="3"
+                          fill="#ffffff"
+                          stroke="#1d4ed8"
+                          stroke-width="1"
+                          [style.cursor]="resizeHandleCursor(handle)"
+                          (pointerdown)="onResizeHandlePointerDown($event, element, handle)"></rect>
+                      </ng-container>
+                    </ng-container>
+                  </ng-container>
                 </g>
               </svg>
             </div>

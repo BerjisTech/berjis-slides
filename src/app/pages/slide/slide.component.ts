@@ -5,9 +5,27 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { SlidesService, SlideCollaborator, SlideDoc, UploadedAsset, defaultSlides } from '../../slides.service';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, GRID_SIZE, SlideElement, SlideLayout, SlideModel, cloneSlide, createImageElement, createShapeElement, createSlide, createTextElement } from '../../models/slide';
 
+type ResizeHandle = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
+
 interface AlignmentGuides {
   vertical: number | null;
   horizontal: number | null;
+}
+
+interface ImageRenderBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface ResizeOrigin {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  pointerX: number;
+  pointerY: number;
 }
 
 @Component({
@@ -96,6 +114,15 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   imageUploading = false;
   isCanvasDropActive = false;
   private canvasDragDepth = 0;
+  readonly imageResizeHandles: ResizeHandle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+  readonly resizeHandleSize = 12;
+  readonly imageSizeRange = { min: 40, max: 1600 };
+  readonly imageCropZoomRange = { min: 1, max: 4, step: 0.05 };
+  readonly imageCropOffsetRange = { min: -100, max: 100, step: 1 };
+  resizingElementId: string | null = null;
+  resizeHandle: ResizeHandle | null = null;
+  private resizeOrigin?: ResizeOrigin;
+  private resizeDidMutate = false;
   readonly lineHeightRange = { min: 0.8, max: 2.5, step: 0.1 };
   readonly bulletStyles: ('none' | 'bullet' | 'number')[] = ['none', 'bullet', 'number'];
   readonly strokeStyles: Array<'solid' | 'dashed' | 'dotted'> = ['solid', 'dashed', 'dotted'];
@@ -197,6 +224,14 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       return null;
     }
     return slide.elements.find(el => el.id === this.selectedElementId && el.type === 'shape') ?? null;
+  }
+
+  get selectedImageElement(): SlideElement | null {
+    const slide = this.activeSlide;
+    if (!slide) {
+      return null;
+    }
+    return slide.elements.find(el => el.id === this.selectedElementId && el.type === 'image') ?? null;
   }
 
   onMenu(action: string) {
@@ -333,6 +368,27 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     await this.uploadImageFromFile(file);
   }
 
+  onResizeHandlePointerDown(event: PointerEvent, element: SlideElement, handle: ResizeHandle) {
+    if (element.type !== 'image') {
+      return;
+    }
+    event.stopPropagation();
+    event.preventDefault();
+    this.selectedElementId = element.id;
+    const { x, y } = this.clientToCanvas(event);
+    this.resizingElementId = element.id;
+    this.resizeHandle = handle;
+    this.resizeOrigin = {
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+      pointerX: x,
+      pointerY: y
+    };
+    this.resizeDidMutate = false;
+  }
+
   selectSlide(index: number) {
     this.selectedSlideIndex = index;
     this.selectedElementId = null;
@@ -443,6 +499,10 @@ export class SlidePageComponent implements OnInit, OnDestroy {
 
   @HostListener('window:pointermove', ['$event'])
   handlePointerMove(event: PointerEvent) {
+    if (this.resizingElementId && this.resizeHandle) {
+      this.handleImageResizePointerMove(event);
+      return;
+    }
     if (this.isPanning) {
       const deltaX = event.clientX - this.panPointerStart.x;
       const deltaY = event.clientY - this.panPointerStart.y;
@@ -474,6 +534,92 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       this.alignmentGuides = { vertical: null, horizontal: null };
       this.queueSave();
     }
+    if (this.resizingElementId) {
+      this.resizingElementId = null;
+      this.resizeHandle = null;
+      this.resizeOrigin = undefined;
+      if (this.resizeDidMutate) {
+        this.queueSave();
+      }
+      this.resizeDidMutate = false;
+    }
+  }
+
+  private handleImageResizePointerMove(event: PointerEvent) {
+    if (!this.resizingElementId || !this.resizeHandle || !this.resizeOrigin) {
+      return;
+    }
+    const slide = this.activeSlide;
+    if (!slide) {
+      return;
+    }
+    const element = slide.elements.find(el => el.id === this.resizingElementId);
+    if (!element || element.type !== 'image') {
+      return;
+    }
+    const { x, y } = this.clientToCanvas(event);
+    const dx = x - this.resizeOrigin.pointerX;
+    const dy = y - this.resizeOrigin.pointerY;
+    let nextWidth = this.resizeOrigin.width;
+    let nextHeight = this.resizeOrigin.height;
+    let nextX = this.resizeOrigin.x;
+    let nextY = this.resizeOrigin.y;
+    const minSize = this.imageSizeRange.min;
+    const handle = this.resizeHandle;
+    const affectsWest = handle.includes('w');
+    const affectsEast = handle.includes('e');
+    const affectsNorth = handle.includes('n');
+    const affectsSouth = handle.includes('s');
+
+    if (affectsEast) {
+      nextWidth = this.resizeOrigin.width + dx;
+    }
+    if (affectsSouth) {
+      nextHeight = this.resizeOrigin.height + dy;
+    }
+    if (affectsWest) {
+      nextWidth = this.resizeOrigin.width - dx;
+      nextX = this.resizeOrigin.x + dx;
+    }
+    if (affectsNorth) {
+      nextHeight = this.resizeOrigin.height - dy;
+      nextY = this.resizeOrigin.y + dy;
+    }
+
+    nextWidth = Math.max(minSize, nextWidth);
+    nextHeight = Math.max(minSize, nextHeight);
+
+    if (this.isImageAspectLocked(element) && handle.length === 2) {
+      const ratio = this.imageAspectRatio(element);
+      if (ratio > 0) {
+        if (Math.abs(dx) >= Math.abs(dy)) {
+          nextHeight = nextWidth / ratio;
+        } else {
+          nextWidth = nextHeight * ratio;
+        }
+        if (affectsNorth) {
+          nextY = this.resizeOrigin.y + (this.resizeOrigin.height - nextHeight);
+        }
+        if (affectsWest) {
+          nextX = this.resizeOrigin.x + (this.resizeOrigin.width - nextWidth);
+        }
+      }
+    }
+
+    nextX = this.clamp(nextX, 0, this.canvasWidth - nextWidth);
+    nextY = this.clamp(nextY, 0, this.canvasHeight - nextHeight);
+    nextWidth = Math.min(nextWidth, this.canvasWidth - nextX);
+    nextHeight = Math.min(nextHeight, this.canvasHeight - nextY);
+
+    element.x = Math.round(nextX);
+    element.y = Math.round(nextY);
+    element.width = Math.round(nextWidth);
+    element.height = Math.round(nextHeight);
+    if (element.width > 0 && element.height > 0) {
+      element.data.aspectRatio = element.width / element.height;
+    }
+    this.normalizeImageCrop(element);
+    this.resizeDidMutate = true;
   }
 
   @HostListener('document:dragend')
@@ -579,6 +725,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     });
     slide.elements.push(element);
     this.selectedElementId = element.id;
+    this.normalizeImageCrop(element);
     this.queueSave();
   }
 
@@ -789,6 +936,110 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.queueSave();
   }
 
+  changeImageWidth(value: number | string) {
+    const element = this.selectedImageElement;
+    if (!element) return;
+    const numeric = typeof value === 'string' ? Number(value) : value;
+    if (!Number.isFinite(numeric)) return;
+    const clamped = this.clamp(Math.round(numeric), this.imageSizeRange.min, this.canvasWidth);
+    const ratio = this.imageAspectRatio(element);
+    element.width = clamped;
+    if (this.isImageAspectLocked(element) && ratio > 0) {
+      const nextHeight = Math.round(clamped / ratio);
+      element.height = this.clamp(nextHeight, this.imageSizeRange.min, this.canvasHeight);
+    }
+    element.data.aspectRatio = element.width > 0 && element.height > 0 ? element.width / element.height : element.data.aspectRatio;
+    this.clampElementToCanvas(element);
+    this.normalizeImageCrop(element);
+    this.queueSave();
+  }
+
+  changeImageHeight(value: number | string) {
+    const element = this.selectedImageElement;
+    if (!element) return;
+    const numeric = typeof value === 'string' ? Number(value) : value;
+    if (!Number.isFinite(numeric)) return;
+    const clamped = this.clamp(Math.round(numeric), this.imageSizeRange.min, this.canvasHeight);
+    const ratio = this.imageAspectRatio(element);
+    element.height = clamped;
+    if (this.isImageAspectLocked(element) && ratio > 0) {
+      const nextWidth = Math.round(clamped * ratio);
+      element.width = this.clamp(nextWidth, this.imageSizeRange.min, this.canvasWidth);
+    }
+    element.data.aspectRatio = element.width > 0 && element.height > 0 ? element.width / element.height : element.data.aspectRatio;
+    this.clampElementToCanvas(element);
+    this.normalizeImageCrop(element);
+    this.queueSave();
+  }
+
+  toggleImageAspectLock(locked: boolean) {
+    const element = this.selectedImageElement;
+    if (!element) return;
+    element.data.lockAspectRatio = locked;
+    if (locked && element.width > 0 && element.height > 0) {
+      element.data.aspectRatio = element.width / element.height;
+    }
+    this.queueSave();
+  }
+
+  resetImageSize() {
+    const element = this.selectedImageElement;
+    if (!element) return;
+    const ratio = this.imageAspectRatio(element) || 1;
+    const targetWidth = this.clamp(360, this.imageSizeRange.min, this.canvasWidth);
+    const targetHeight = this.clamp(Math.round(targetWidth / ratio), this.imageSizeRange.min, this.canvasHeight);
+    element.width = targetWidth;
+    element.height = targetHeight;
+    element.data.aspectRatio = ratio;
+    this.clampElementToCanvas(element);
+    this.normalizeImageCrop(element);
+    this.queueSave();
+  }
+
+  changeImageCropZoom(value: number | string) {
+    const element = this.selectedImageElement;
+    if (!element) return;
+    const numeric = typeof value === 'string' ? Number(value) : value;
+    if (!Number.isFinite(numeric)) return;
+    const clamped = this.clamp(numeric, this.imageCropZoomRange.min, this.imageCropZoomRange.max);
+    element.data.cropZoom = Number(clamped.toFixed(2));
+    if ((element.data.cropZoom ?? 1) <= 1) {
+      element.data.cropZoom = 1;
+      element.data.cropOffsetX = 0;
+      element.data.cropOffsetY = 0;
+    }
+    this.normalizeImageCrop(element);
+    this.queueSave();
+  }
+
+  changeImageCropOffset(axis: 'x' | 'y', value: number | string) {
+    const element = this.selectedImageElement;
+    if (!element) return;
+    if (!element.data.cropZoom || element.data.cropZoom <= 1) {
+      return;
+    }
+    const numeric = typeof value === 'string' ? Number(value) : value;
+    if (!Number.isFinite(numeric)) return;
+    const clampedPercent = this.clamp(numeric, this.imageCropOffsetRange.min, this.imageCropOffsetRange.max);
+    const normalized = Number((clampedPercent / 100).toFixed(2));
+    if (axis === 'x') {
+      element.data.cropOffsetX = normalized;
+    } else {
+      element.data.cropOffsetY = normalized;
+    }
+    this.normalizeImageCrop(element);
+    this.queueSave();
+  }
+
+  resetImageCrop() {
+    const element = this.selectedImageElement;
+    if (!element) return;
+    element.data.cropZoom = 1;
+    element.data.cropOffsetX = 0;
+    element.data.cropOffsetY = 0;
+    this.queueSave();
+  }
+
   changeLineHeight(value: number | string) {
     const element = this.selectedTextElement;
     if (!element) {
@@ -819,6 +1070,43 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     }
     element.data.bulletStyle = style;
     this.queueSave();
+  }
+
+  isImageAspectLocked(element: SlideElement): boolean {
+    if (element.type !== 'image') {
+      return false;
+    }
+    return element.data.lockAspectRatio !== false;
+  }
+
+  imageAspectRatio(element: SlideElement): number {
+    if (element.type !== 'image') {
+      return 1;
+    }
+    if (element.data.aspectRatio && element.data.aspectRatio > 0) {
+      return element.data.aspectRatio;
+    }
+    if (element.height > 0) {
+      return element.width / element.height;
+    }
+    return 1;
+  }
+
+  imageCropZoomValue(element: SlideElement): number {
+    if (element.type !== 'image') {
+      return 1;
+    }
+    const zoom = typeof element.data.cropZoom === 'number' ? element.data.cropZoom : 1;
+    const clamped = this.clamp(zoom, this.imageCropZoomRange.min, this.imageCropZoomRange.max);
+    return Number(clamped.toFixed(2));
+  }
+
+  imageCropOffsetPercent(element: SlideElement, axis: 'x' | 'y'): number {
+    if (element.type !== 'image') {
+      return 0;
+    }
+    const value = axis === 'x' ? element.data.cropOffsetX ?? 0 : element.data.cropOffsetY ?? 0;
+    return Math.round(value * 100);
   }
 
   get selectedFontFamily(): string {
@@ -1289,5 +1577,117 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       return `${this.lineStrokeWidth(element)} ${this.lineStrokeWidth(element) * 1.5}`;
     }
     return null;
+  }
+
+  imageRenderBox(element: SlideElement): ImageRenderBox {
+    if (element.type !== 'image') {
+      return { x: element.x, y: element.y, width: element.width, height: element.height };
+    }
+    return this.computeImageRenderBox(element);
+  }
+
+  imageClipPathId(element: SlideElement, scope: string): string {
+    return `${scope}-clip-${element.id}`;
+  }
+
+  imageClipPathUrl(element: SlideElement, scope: string): string {
+    return `url(#${this.imageClipPathId(element, scope)})`;
+  }
+
+  resizeHandlePosition(element: SlideElement, handle: ResizeHandle): { x: number; y: number } {
+    const size = this.resizeHandleSize;
+    let x = element.x - size / 2;
+    let y = element.y - size / 2;
+    switch (handle) {
+      case 'n':
+        x = element.x + element.width / 2 - size / 2;
+        y = element.y - size / 2;
+        break;
+      case 'ne':
+        x = element.x + element.width - size / 2;
+        y = element.y - size / 2;
+        break;
+      case 'e':
+        x = element.x + element.width - size / 2;
+        y = element.y + element.height / 2 - size / 2;
+        break;
+      case 'se':
+        x = element.x + element.width - size / 2;
+        y = element.y + element.height - size / 2;
+        break;
+      case 's':
+        x = element.x + element.width / 2 - size / 2;
+        y = element.y + element.height - size / 2;
+        break;
+      case 'sw':
+        x = element.x - size / 2;
+        y = element.y + element.height - size / 2;
+        break;
+      case 'w':
+        x = element.x - size / 2;
+        y = element.y + element.height / 2 - size / 2;
+        break;
+      default:
+        x = element.x - size / 2;
+        y = element.y - size / 2;
+        break;
+    }
+    return { x, y };
+  }
+
+  resizeHandleCursor(handle: ResizeHandle): string {
+    switch (handle) {
+      case 'n':
+      case 's':
+        return 'ns-resize';
+      case 'e':
+      case 'w':
+        return 'ew-resize';
+      case 'ne':
+      case 'sw':
+        return 'nesw-resize';
+      default:
+        return 'nwse-resize';
+    }
+  }
+
+  private computeImageRenderBox(element: SlideElement): ImageRenderBox {
+    const zoom = this.imageCropZoomValue(element);
+    const width = element.width * zoom;
+    const height = element.height * zoom;
+    const extraWidth = width - element.width;
+    const extraHeight = height - element.height;
+    const offsetXPercent = this.clamp(element.data.cropOffsetX ?? 0, -1, 1);
+    const offsetYPercent = this.clamp(element.data.cropOffsetY ?? 0, -1, 1);
+    const offsetX = extraWidth ? (extraWidth / 2) * offsetXPercent : 0;
+    const offsetY = extraHeight ? (extraHeight / 2) * offsetYPercent : 0;
+    return {
+      x: element.x - extraWidth / 2 + offsetX,
+      y: element.y - extraHeight / 2 + offsetY,
+      width,
+      height
+    };
+  }
+
+  private clampElementToCanvas(element: SlideElement) {
+    element.x = this.clamp(element.x, 0, this.canvasWidth - element.width);
+    element.y = this.clamp(element.y, 0, this.canvasHeight - element.height);
+  }
+
+  private normalizeImageCrop(element: SlideElement) {
+    if (element.type !== 'image') {
+      return;
+    }
+    const zoom = element.data.cropZoom ?? 1;
+    const clampedZoom = this.clamp(zoom, this.imageCropZoomRange.min, this.imageCropZoomRange.max);
+    element.data.cropZoom = Number(clampedZoom.toFixed(2));
+    if (element.data.cropZoom <= 1) {
+      element.data.cropZoom = 1;
+      element.data.cropOffsetX = 0;
+      element.data.cropOffsetY = 0;
+      return;
+    }
+    element.data.cropOffsetX = this.clamp(element.data.cropOffsetX ?? 0, -1, 1);
+    element.data.cropOffsetY = this.clamp(element.data.cropOffsetY ?? 0, -1, 1);
   }
 }
