@@ -122,6 +122,7 @@ export class SlidePageComponent implements OnInit, OnDestroy {
   readonly imageFilterRange = { min: 0.2, max: 2, step: 0.05 };
   readonly imageSaturationRange = { min: 0, max: 3, step: 0.05 };
   readonly imageFilterDefaults = { brightness: 1, contrast: 1, saturation: 1 };
+  readonly imageRotationRange = { min: -180, max: 180, step: 1 };
   resizingElementId: string | null = null;
   resizeHandle: ResizeHandle | null = null;
   private resizeOrigin?: ResizeOrigin;
@@ -1063,6 +1064,23 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     this.queueSave();
   }
 
+  changeImageRotation(value: number | string) {
+    const element = this.selectedImageElement;
+    if (!element) return;
+    const numeric = typeof value === 'string' ? Number(value) : value;
+    if (!Number.isFinite(numeric)) return;
+    const clamped = this.clamp(Math.round(numeric), this.imageRotationRange.min, this.imageRotationRange.max);
+    element.rotation = clamped;
+    this.queueSave();
+  }
+
+  resetImageRotation() {
+    const element = this.selectedImageElement;
+    if (!element) return;
+    element.rotation = 0;
+    this.queueSave();
+  }
+
   changeLineHeight(value: number | string) {
     const element = this.selectedTextElement;
     if (!element) {
@@ -1166,6 +1184,23 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       Math.abs(this.imageFilterValue(element, 'contrast') - this.imageFilterDefaults.contrast) < 0.01 &&
       Math.abs(this.imageFilterValue(element, 'saturation') - this.imageFilterDefaults.saturation) < 0.01
     );
+  }
+
+  imageRotationValue(element: SlideElement): number {
+    return element.rotation ?? 0;
+  }
+
+  imageTransform(element: SlideElement): string | null {
+    if (element.type !== 'image') {
+      return null;
+    }
+    const angle = element.rotation ?? 0;
+    if (!angle) {
+      return null;
+    }
+    const cx = element.x + element.width / 2;
+    const cy = element.y + element.height / 2;
+    return `rotate(${angle} ${cx} ${cy})`;
   }
 
   get selectedFontFamily(): string {

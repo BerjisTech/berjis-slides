@@ -462,6 +462,27 @@
         <span class="w-12 text-right text-xs">{{ imageFilterValue(imageEl, 'saturation') | number:'1.1-1' }}x</span>
       </div>
     </div>
+    <div class="flex flex-wrap items-center gap-3 bg-white/90 dark:bg-slate-900/70 border border-blue-900/10 dark:border-slate-800 rounded-2xl px-4 py-3 shadow-sm">
+      <div class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-200 w-full">
+        <label class="text-xs">Rotation</label>
+        <input type="range" class="flex-1"
+          [min]="imageRotationRange.min"
+          [max]="imageRotationRange.max"
+          [step]="imageRotationRange.step"
+          [ngModel]="imageRotationValue(imageEl)"
+          (ngModelChange)="changeImageRotation($event)">
+        <input type="number" class="w-20 border border-blue-900/15 dark:border-slate-700 rounded px-2 py-1 bg-white/90 dark:bg-slate-800"
+          [min]="imageRotationRange.min"
+          [max]="imageRotationRange.max"
+          [step]="imageRotationRange.step"
+          [ngModel]="imageRotationValue(imageEl)"
+          (ngModelChange)="changeImageRotation($event)">
+        <span class="text-xs text-slate-500 dark:text-slate-400">deg</span>
+      </div>
+      <button type="button" class="px-3 py-1 rounded border border-blue-900/15 dark:border-slate-600 bg-white/95 dark:bg-slate-800 text-xs"
+        [disabled]="imageRotationValue(imageEl) === 0"
+        (click)="resetImageRotation()">Reset rotation</button>
+    </div>
   </div>
 
   <div class="flex gap-4 items-start">
@@ -482,7 +503,7 @@
             <span *ngIf="dragOverIndex === i" class="text-blue-500">&bull;</span>
           </div>
           <svg [attr.viewBox]="'0 0 ' + canvasWidth + ' ' + canvasHeight" class="w-full mt-2 rounded border border-blue-900/10 dark:border-slate-700 bg-slate-50">
-            <g *ngFor="let element of slide.elements">
+                <g *ngFor="let element of slide.elements" [attr.transform]="element.type === 'image' ? imageTransform(element) : null">
               <ng-container *ngIf="element.type === 'shape'">
                   <ng-container [ngSwitch]="element.data.shapeKind">
                     <ellipse *ngSwitchCase="'ellipse'"
@@ -580,7 +601,10 @@
                 <div *ngIf="alignmentGuides.horizontal !== null" class="absolute left-0 right-0 h-0.5 bg-blue-500/60" [style.top.px]="alignmentGuides.horizontal"></div>
               </div>
               <svg [attr.viewBox]="'0 0 ' + canvasWidth + ' ' + canvasHeight" class="relative z-10 w-full h-full">
-                <g *ngFor="let element of activeSlide?.elements" (pointerdown)="onElementPointerDown($event, element)" class="cursor-move">
+                <g *ngFor="let element of activeSlide?.elements"
+                  (pointerdown)="onElementPointerDown($event, element)"
+                  class="cursor-move"
+                  [attr.transform]="element.type === 'image' ? imageTransform(element) : null">
                   <ng-container *ngIf="element.type === 'shape'">
                   <ng-container [ngSwitch]="element.data.shapeKind">
                     <ellipse *ngSwitchCase="'ellipse'"
