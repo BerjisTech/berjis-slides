@@ -162,6 +162,34 @@
     </div>
     <div class="flex flex-wrap gap-2 text-xs">
       <button type="button" class="px-3 py-1 rounded border border-blue-900/15 dark:border-slate-700 bg-white/95 dark:bg-slate-800"
+        [disabled]="!canAlignSelection()"
+        (click)="alignSelection('left')">Align left</button>
+      <button type="button" class="px-3 py-1 rounded border border-blue-900/15 dark:border-slate-700 bg-white/95 dark:bg-slate-800"
+        [disabled]="!canAlignSelection()"
+        (click)="alignSelection('hcenter')">Align center</button>
+      <button type="button" class="px-3 py-1 rounded border border-blue-900/15 dark:border-slate-700 bg-white/95 dark:bg-slate-800"
+        [disabled]="!canAlignSelection()"
+        (click)="alignSelection('right')">Align right</button>
+      <button type="button" class="px-3 py-1 rounded border border-blue-900/15 dark:border-slate-700 bg-white/95 dark:bg-slate-800"
+        [disabled]="!canAlignSelection()"
+        (click)="alignSelection('top')">Align top</button>
+      <button type="button" class="px-3 py-1 rounded border border-blue-900/15 dark:border-slate-700 bg-white/95 dark:bg-slate-800"
+        [disabled]="!canAlignSelection()"
+        (click)="alignSelection('vcenter')">Align middle</button>
+      <button type="button" class="px-3 py-1 rounded border border-blue-900/15 dark:border-slate-700 bg-white/95 dark:bg-slate-800"
+        [disabled]="!canAlignSelection()"
+        (click)="alignSelection('bottom')">Align bottom</button>
+    </div>
+    <div class="flex flex-wrap gap-2 text-xs">
+      <button type="button" class="px-3 py-1 rounded border border-blue-900/15 dark:border-slate-700 bg-white/95 dark:bg-slate-800"
+        [disabled]="!canDistributeSelection()"
+        (click)="distributeSelection('horizontal')">Distribute horizontally</button>
+      <button type="button" class="px-3 py-1 rounded border border-blue-900/15 dark:border-slate-700 bg-white/95 dark:bg-slate-800"
+        [disabled]="!canDistributeSelection()"
+        (click)="distributeSelection('vertical')">Distribute vertically</button>
+    </div>
+    <div class="flex flex-wrap gap-2 text-xs">
+      <button type="button" class="px-3 py-1 rounded border border-blue-900/15 dark:border-slate-700 bg-white/95 dark:bg-slate-800"
         [disabled]="selectionCount < 2"
         (click)="groupSelection()">Group (Ctrl+G)</button>
       <button type="button" class="px-3 py-1 rounded border border-blue-900/15 dark:border-slate-700 bg-white/95 dark:bg-slate-800"

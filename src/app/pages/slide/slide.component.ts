@@ -313,6 +313,14 @@ export class SlidePageComponent implements OnInit, OnDestroy {
     return this.selectedElements.some(element => !!element.data.groupId);
   }
 
+  canAlignSelection(): boolean {
+    return this.selectedElements.filter(element => !this.isLocked(element)).length >= 2;
+  }
+
+  canDistributeSelection(): boolean {
+    return this.selectedElements.filter(element => !this.isLocked(element)).length >= 3;
+  }
+
   get layerEntries(): Array<{ id: string; element: SlideElement; label: string; order: number }> {
     const slide = this.activeSlide;
     if (!slide) {
@@ -404,6 +412,30 @@ export class SlidePageComponent implements OnInit, OnDestroy {
       return [];
     }
     return slide.elements.filter(element => element.data.groupId === groupId);
+  }
+
+  private selectionBounds(elements: SlideElement[]): { minX: number; minY: number; maxX: number; maxY: number; centerX: number; centerY: number } | null {
+    if (!elements.length) {
+      return null;
+    }
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    for (const element of elements) {
+      minX = Math.min(minX, element.x);
+      minY = Math.min(minY, element.y);
+      maxX = Math.max(maxX, element.x + element.width);
+      maxY = Math.max(maxY, element.y + element.height);
+    }
+    return {
+      minX,
+      minY,
+      maxX,
+      maxY,
+      centerX: minX + (maxX - minX) / 2,
+      centerY: minY + (maxY - minY) / 2
+    };
   }
 
   onMenu(action: string) {
@@ -950,6 +982,98 @@ export class SlidePageComponent implements OnInit, OnDestroy {
 
   sendSelectionBackward() {
     this.reorderSelection('backward');
+  }
+
+  alignSelection(mode: 'left' | 'right' | 'top' | 'bottom' | 'hcenter' | 'vcenter') {
+    const targets = this.selectedElements.filter(element => !this.isLocked(element));
+    if (targets.length < 2) {
+      return;
+    }
+    const bounds = this.selectionBounds(targets);
+    if (!bounds) {
+      return;
+    }
+    let changed = false;
+    for (const element of targets) {
+      let nextX = element.x;
+      let nextY = element.y;
+      switch (mode) {
+        case 'left':
+          nextX = bounds.minX;
+          break;
+        case 'right':
+          nextX = bounds.maxX - element.width;
+          break;
+        case 'top':
+          nextY = bounds.minY;
+          break;
+        case 'bottom':
+          nextY = bounds.maxY - element.height;
+          break;
+        case 'hcenter':
+          nextX = bounds.centerX - element.width / 2;
+          break;
+        case 'vcenter':
+          nextY = bounds.centerY - element.height / 2;
+          break;
+      }
+      nextX = this.clamp(nextX, 0, this.canvasWidth - element.width);
+      nextY = this.clamp(nextY, 0, this.canvasHeight - element.height);
+      const roundedX = Math.round(nextX);
+      const roundedY = Math.round(nextY);
+      if (roundedX !== element.x || roundedY !== element.y) {
+        element.x = roundedX;
+        element.y = roundedY;
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.queueSave();
+    }
+  }
+
+  distributeSelection(axis: 'horizontal' | 'vertical') {
+    const targets = this.selectedElements.filter(element => !this.isLocked(element));
+    if (targets.length < 3) {
+      return;
+    }
+    const bounds = this.selectionBounds(targets);
+    if (!bounds) {
+      return;
+    }
+    const sorted = [...targets].sort((a, b) =>
+      axis === 'horizontal' ? a.x - b.x : a.y - b.y
+    );
+    const totalSize = sorted.reduce(
+      (sum, element) => sum + (axis === 'horizontal' ? element.width : element.height),
+      0
+    );
+    const span = axis === 'horizontal' ? bounds.maxX - bounds.minX : bounds.maxY - bounds.minY;
+    const gap = (span - totalSize) / (sorted.length - 1);
+    let cursor = axis === 'horizontal' ? bounds.minX : bounds.minY;
+    let changed = false;
+    for (const element of sorted) {
+      if (axis === 'horizontal') {
+        const nextX = this.clamp(cursor, 0, this.canvasWidth - element.width);
+        const roundedX = Math.round(nextX);
+        if (roundedX !== element.x) {
+          element.x = roundedX;
+          changed = true;
+        }
+        cursor = roundedX + element.width + gap;
+      } else {
+        const nextY = this.clamp(cursor, 0, this.canvasHeight - element.height);
+        const roundedY = Math.round(nextY);
+        if (roundedY !== element.y) {
+          element.y = roundedY;
+          changed = true;
+        }
+        cursor = roundedY + element.height + gap;
+      }
+    }
+    if (changed) {
+      this.queueSave();
+    }
   }
 
   toggleLockSelection(lock: boolean) {

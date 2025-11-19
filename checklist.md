@@ -87,14 +87,14 @@ Build a full-featured online presentation editor (like PowerPoint/Google Slides)
 - [x] Show/hide elements
 
 ### **Alignment Tools**
-- [ ] Align left edges
-- [ ] Align right edges
-- [ ] Align top edges
-- [ ] Align bottom edges
-- [ ] Align horizontal center
-- [ ] Align vertical center
-- [ ] Distribute horizontally
-- [ ] Distribute vertically
+- [x] Align left edges
+- [x] Align right edges
+- [x] Align top edges
+- [x] Align bottom edges
+- [x] Align horizontal center
+- [x] Align vertical center
+- [x] Distribute horizontally
+- [x] Distribute vertically
 
 ---
 
