@@ -10,7 +10,7 @@
   --color-bg-light-start: #eff6ff; --color-bg-light-end: #f8fafc;
   --color-text-primary: #0f172a; --color-text-accent: #1e3a8a; --color-link: #3b82f6;
   --color-shadow-light: rgba(30,64,175,0.15);
-  --color-bg-dark-start: #020617; --color-bg-dark-end: #0f172a; --color-text-dark: #f8fafc;
+  --color-bg-dark-start: #020617; --color-bg-dark-end: #0f172a; --color-text-dark: #eff6ff;
   --color-gold: #f5c542; --color-shadow-dark: rgba(2,6,23,0.6);
 }
 
@@ -44,7 +44,63 @@ html.dark body {
   background-image: linear-gradient(135deg, var(--color-bg-dark-start), var(--color-bg-dark-end));
 }
 
-a { @apply text-blue-400 hover:text-blue-500 underline-offset-4 decoration-blue-300 hover:decoration-blue-500; }
+:root {
+  --text-primary-token: var(--color-text-primary);
+}
+
+html.dark {
+  --text-primary-token: var(--color-text-dark);
+}
+
+:root {
+  --panel-bg: #ffffff;
+  --toolbar-bg: #f1f5f9;
+  --muted-bg: #f8fafc;
+  --border-light: #e6eef8;
+  --muted-text: #6b7280;
+}
+
+html.dark {
+  --panel-bg: #071220;
+  --toolbar-bg: #0f172a;
+  --muted-bg: rgba(255,255,255,0.02);
+  --border-light: rgba(255,255,255,0.06);
+  --muted-text: rgba(248,250,252,0.7);
+}
+
+a {
+  color: var(--color-link);
+  text-decoration-skip-ink: auto;
+}
+
+a:hover {
+  opacity: 0.9;
+}
+
+.bg-white { background-color: var(--panel-bg) !important; }
+.bg-slate-50 { background-color: var(--muted-bg) !important; }
+.bg-slate-100 { background-color: var(--toolbar-bg) !important; }
+.bg-blue-100 { background-color: rgba(59,130,246,0.06) !important; }
+
+.border-slate-200, .border-slate-300 { border-color: var(--border-light) !important; }
+.text-gray-500, .text-slate-500 { color: var(--muted-text) !important; }
+
+.text-slate-50, .text-slate-100, .text-slate-200, .text-slate-300, .text-slate-400 {
+  color: var(--text-primary-token) !important;
+}
+
+.dark .dark\:text-slate-50,
+.dark .dark\:text-slate-100,
+.dark .dark\:text-slate-200,
+.dark .dark\:text-slate-300,
+.dark .dark\:text-slate-400 {
+  color: var(--text-primary-token) !important;
+}
+
+.shadow { box-shadow: 0 6px 18px rgba(2,6,23,0.4) !important; }
+.shadow-sm { box-shadow: 0 1px 2px rgba(2,6,23,0.2) !important; }
+.modal, .panel, .card { background-color: var(--panel-bg); color: inherit; }
+
 @keyframes gradient-pan { 0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%} }
 .bg-app-gradient { background-image: linear-gradient(135deg, var(--color-bg-light-start), var(--color-bg-light-end)); background-size:200% 200%; }
 .dark .bg-app-gradient { background-image: linear-gradient(135deg, var(--color-bg-dark-start), var(--color-bg-dark-end)); }
